@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volta — Gestión v11</title>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+  <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f3;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6b6b68;
+      --text-tertiary: #aaaaaa;
+      --border: rgba(0,0,0,0.15);
+      --border-strong: rgba(0,0,0,0.25);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a;
+        --bg-secondary: #262624;
+        --text-primary: #f0ede8;
+        --text-secondary: #9a9893;
+        --text-tertiary: #5a5956;
+        --border: rgba(255,255,255,0.12);
+        --border-strong: rgba(255,255,255,0.22);
+      }
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      border: 0.5px solid var(--border);
+      padding: 2.5rem 2rem;
+    }
+
+    .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2.5rem; }
+    .brand-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 500; color: var(--text-primary); letter-spacing: -0.5px; }
+    .brand-tag { font-size: 11px; color: var(--text-secondary); letter-spacing: 1.5px; text-transform: uppercase; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* HOME */
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 1rem; }
+    @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
+    .home-card { padding: 2rem 1.5rem; border: 0.5px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--bg); cursor: pointer; transition: all 0.15s; text-align: left; }
+    .home-card:hover { background: var(--bg-secondary); border-color: var(--border); }
+    .home-card-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 16px; font-weight: 500; }
+    .icon-admin { background: #E1F5EE; color: #0F6E56; }
+    .icon-prof { background: #EEEDFE; color: #534AB7; }
+    .home-card-title { font-size: 16px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+    .home-card-sub { font-size: 13px; color: var(--text-secondary); }
+
+    /* PROF LIST */
+    .prof-list { display: grid; gap: 8px; margin-top: 1rem; }
+    .prof-item { padding: 14px 16px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); cursor: pointer; display: flex; align-items: center; gap: 14px; transition: all 0.15s; }
+    .prof-item:hover { background: var(--bg-secondary); }
+    .prof-avatar { width: 40px; height: 40px; border-radius: 50%; background: #EEEDFE; color: #3C3489; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .prof-item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .prof-item-esp { font-size: 12px; color: var(--text-secondary); }
+
+    /* NAV */
+    .main-nav { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .main-tab { padding: 10px 22px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 400; color: var(--text-secondary); cursor: pointer; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); transition: all 0.15s; }
+    .main-tab:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .main-tab.active { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 500; }
+    .main-section { display: none; }
+    .main-section.active { display: block; }
+
+    .sub-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 2rem; overflow-x: auto; }
+    .sub-tab { padding: 9px 18px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 400; color: var(--text-secondary); cursor: pointer; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; background: none; transition: color 0.15s, border-color 0.15s; }
+    .sub-tab:hover { color: var(--text-primary); }
+    .sub-tab.active { color: var(--text-primary); font-weight: 500; border-bottom-color: var(--text-primary); }
+    .sub-section { display: none; }
+    .sub-section.active { display: block; }
+
+    /* FORMS */
+    .panel-title { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .panel-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .op-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+    .op-btn { padding: 10px 8px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .op-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .op-btn.alta.active { background: #0F6E56; border-color: #0F6E56; color: #E1F5EE; font-weight: 500; }
+    .op-btn.baja.active { background: #993C1D; border-color: #993C1D; color: #FAECE7; font-weight: 500; }
+    .op-btn.mod.active  { background: #185FA5; border-color: #185FA5; color: #E6F1FB; font-weight: 500; }
+    .baja-notice { display: none; padding: 12px 14px; border-radius: var(--radius-md); background: #FAECE7; border: 0.5px solid #F0997B; font-size: 13px; color: #993C1D; margin-bottom: 1.5rem; }
+    .baja-notice.show { display: block; }
+    .info-box { padding: 10px 14px; border-radius: var(--radius-md); background: var(--bg-secondary); border: 0.5px solid var(--border); font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .sec-lbl { font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 540px) { .grid2 { grid-template-columns: 1fr; } .app { padding: 1.5rem 1rem; } }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.3px; }
+    input, select, textarea { font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 9px 12px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-primary); width: 100%; transition: border-color 0.15s, box-shadow 0.15s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--text-secondary); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
+    input.err, select.err { border-color: #E24B4A !important; }
+    input[readonly] { background: var(--bg-secondary); color: var(--text-secondary); cursor: default; }
+    textarea { resize: vertical; min-height: 180px; line-height: 1.6; }
+    .field-err { font-size: 11px; color: #A32D2D; margin-top: 2px; display: none; }
+    .field-err.show { display: block; }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
+    .submit-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem; }
+
+    .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-bottom: 1.5rem; transition: background 0.15s; }
+    .btn-back:hover { background: var(--bg-secondary); }
+    .btn-sec { padding: 9px 20px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .btn-sec:hover { background: var(--bg-secondary); }
+    .btn-pri { padding: 9px 24px; border: none; border-radius: var(--radius-md); background: var(--text-primary); color: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+    .btn-pri:hover { opacity: 0.82; }
+    .btn-pri.alta { background: #0F6E56; color: #E1F5EE; }
+    .btn-pri.baja { background: #993C1D; color: #FAECE7; }
+    .btn-pri.mod  { background: #185FA5; color: #E6F1FB; }
+    .btn-pri.purple { background: #534AB7; color: #EEEDFE; }
+
+    .ok-msg { display: none; align-items: center; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); background: #E1F5EE; border: 0.5px solid #5DCAA5; font-size: 13px; color: #0F6E56; margin-top: 1rem; }
+    .ok-msg.show { display: flex; }
+    .hidden { display: none !important; }
+
+    .count-badge { font-size: 12px; background: var(--bg-secondary); color: var(--text-secondary); padding: 3px 10px; border-radius: 99px; font-weight: 400; }
+    .search-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+    .search-bar input { flex: 1; }
+
+    .tbl-wrap { overflow-x: auto; border: 0.5px solid var(--border); border-radius: var(--radius-md); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    thead tr { background: var(--bg-secondary); }
+    th { padding: 10px 14px; text-align: left; font-weight: 500; font-size: 12px; color: var(--text-secondary); letter-spacing: 0.3px; border-bottom: 0.5px solid var(--border); }
+    td { padding: 10px 14px; color: var(--text-primary); border-bottom: 0.5px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-secondary); }
+    tbody tr.clickable { cursor: pointer; }
+    .empty-state { padding: 2.5rem; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+    .pill-p { background: #EEEDFE; color: #3C3489; }
+    .pill-b { background: #E6F1FB; color: #0C447C; }
+    .pill-c { background: #E1F5EE; color: #085041; }
+
+    /* SESIÓN */
+    .pac-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+    .pac-card-row { display: flex; flex-direction: column; gap: 2px; }
+    .pac-card-lbl { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .pac-card-val { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+
+    /* HISTORIA DETALLE */
+    .sesion-detail { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
+    .sesion-detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+    .sesion-obs { font-size: 14px; color: var(--text-primary); line-height: 1.7; white-space: pre-wrap; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); }
+    /* REPORTE ASISTENCIA */
+    .asist-header { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .asist-header .fg { margin-bottom: 0; }
+    .asist-stat { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .asist-stat-box { flex: 1; min-width: 100px; padding: 12px 16px; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: var(--bg-secondary); }
+    .asist-stat-num { font-size: 22px; font-weight: 500; color: var(--text-primary); }
+    .asist-stat-lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .asist-ok { color: #0F6E56; font-weight: 500; }
+    .asist-no { color: #993C1D; }
+    .asist-icon { font-size: 15px; }
+    /* AUTH OVERLAY */
+    .auth-overlay { position: fixed; inset: 0; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .auth-overlay.hidden { display: none; }
+    .auth-box { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem 2rem; max-width: 360px; width: 90%; text-align: center; }
+    .auth-logo { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 500; margin-bottom: 6px; }
+    .auth-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 2rem; }
+    .auth-btn { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .auth-btn:hover { background: var(--bg-secondary); }
+    .auth-err { font-size: 12px; color: #A32D2D; margin-top: 1rem; display: none; }
+    .auth-err.show { display: block; }
+
+    /* SYNC */
+    .sync-bar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 1rem; font-size: 12px; color: var(--text-tertiary); }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-tertiary); }
+    .sync-dot.ok { background: #0F6E56; }
+    .sync-dot.err { background: #E24B4A; }
+    .sync-dot.loading { background: #F0A429; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .sync-spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--text-secondary); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">Volta</div>
+    <div class="auth-sub">Gestión del centro</div>
+    <button class="auth-btn" onclick="iniciarLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.17z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
+      Ingresar con Google
+    </button>
+    <div id="auth-err" class="auth-err">No se pudo iniciar sesión. Intentá de nuevo.</div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="brand">
+    <span class="brand-name">Volta</span>
+    <span class="brand-tag">Gestión</span>
+  </div>
+  <div class="sync-bar" id="sync-bar">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-txt">Conectando…</span>
+  </div>
+
+  <!-- ======== INICIO ======== -->
+  <div id="screen-home" class="screen active">
+    <div style="font-size:15px;color:var(--text-secondary);margin-bottom:1.5rem;">¿Cómo ingresás hoy?</div>
+    <div class="home-grid">
+      <div class="home-card" onclick="goAdmin()">
+        <div class="home-card-icon icon-admin">⚙</div>
+        <div class="home-card-title">Administrador</div>
+        <div class="home-card-sub">Gestión de prestadores, profesionales y pacientes</div>
+      </div>
+      <div class="home-card" onclick="goScreen('screen-proflist')">
+        <div class="home-card-icon icon-prof">◆</div>
+        <div class="home-card-title">Profesional</div>
+        <div class="home-card-sub">Registrar sesiones y consultar historia clínica</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== ADMIN ======== -->
+  <div id="screen-admin" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
+    <div class="main-nav">
+      <button class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
+      <button class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
+    </div>
+
+    <div id="main-abm" class="main-section active">
+      <div class="sub-nav">
+        <button class="sub-tab active" onclick="switchSub('abm','prestadores',this)">Prestadores</button>
+        <button class="sub-tab" onclick="switchSub('abm','profesionales',this)">Profesionales</button>
+        <button class="sub-tab" onclick="switchSub('abm','pacientes',this)">Pacientes</button>
+      </div>
+
+      <!-- ABM PRESTADORES -->
+      <div id="abm-prestadores" class="sub-section active">
+        <div class="panel-title">Prestadores de servicios</div>
+        <div class="panel-sub">Altas, bajas y modificaciones de prestadores</div>
+        <div class="info-box">PARTICULAR es un prestador fijo del sistema y no puede modificarse ni darse de baja. BPS puede actualizarse con datos de contacto.</div>
+        <div class="op-row">
+          <button class="op-btn alta active" onclick="setOp('prestadores','alta',this)">Alta</button>
+          <button class="op-btn baja" onclick="setOp('prestadores','baja',this)">Baja</button>
+          <button class="op-btn mod" onclick="setOp('prestadores','mod',this)">Modificación</button>
+        </div>
+        <div id="prestadores-bn" class="baja-notice">Se procederá a dar de baja al prestador. Complete los datos de identificación.</div>
+        <div id="prestadores-busqueda" class="hidden" style="margin-bottom:1.5rem;">
+          <div class="fg">
+            <label>Buscar prestador</label>
+            <input type="text" id="p-buscar" placeholder="Escribí parte del nombre..." oninput="buscarRegistro('prestadores')">
+          </div>
+          <div id="p-resultados" style="margin-top:8px;display:grid;gap:6px;"></div>
+        </div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador"></div>
+          <div class="fg full"><label>Dirección</label><input id="p-dir" type="text" placeholder="Calle, número, ciudad"></div>
+          <div class="fg"><label>Persona de contacto</label><input id="p-contacto" type="text" placeholder="Nombre completo"></div>
+          <div class="fg"><label>Teléfono</label><input id="p-tel" type="tel" placeholder="+598 99 000 000"></div>
+          <div class="fg full"><label>Mail de contacto</label><input id="p-mail" type="email" placeholder="contacto@prestador.com"></div>
+        </div>
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('prestadores')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-prestadores" onclick="submitF('prestadores')">Registrar alta</button>
+        </div>
+        <div id="prestadores-ok" class="ok-msg"><span>✓</span><span id="prestadores-ok-txt">Operación registrada.</span></div>
+      </div>
+
+      <!-- ABM PROFESIONALES -->
+      <div id="abm-profesionales" class="sub-section">
+        <div class="panel-title">Profesionales</div>
+        <div class="panel-sub">Altas, bajas y modificaciones de profesionales de Volta</div>
+        <div class="op-row">
+          <button class="op-btn alta active" onclick="setOp('profesionales','alta',this)">Alta</button>
+          <button class="op-btn baja" onclick="setOp('profesionales','baja',this)">Baja</button>
+          <button class="op-btn mod" onclick="setOp('profesionales','mod',this)">Modificación</button>
+        </div>
+        <div id="profesionales-bn" class="baja-notice">Se procederá a dar de baja al profesional.</div>
+        <div id="profesionales-busqueda" class="hidden" style="margin-bottom:1.5rem;">
+          <div class="fg">
+            <label>Buscar profesional</label>
+            <input type="text" id="pr-buscar" placeholder="Escribí parte del nombre..." oninput="buscarRegistro('profesionales')">
+          </div>
+          <div id="pr-resultados" style="margin-top:8px;display:grid;gap:6px;"></div>
+        </div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido"></div>
+          <div class="fg"><label>Especialidad</label><input id="pr-esp" type="text" placeholder="Ej. Psicología clínica"></div>
+          <div class="fg"><label>Teléfono</label><input id="pr-tel" type="tel" placeholder="+598 99 000 000"></div>
+          <div class="fg full"><label>Mail</label><input id="pr-mail" type="email" placeholder="profesional@volta.com"></div>
+        </div>
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('profesionales')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-profesionales" onclick="submitF('profesionales')">Registrar alta</button>
+        </div>
+        <div id="profesionales-ok" class="ok-msg"><span>✓</span><span id="profesionales-ok-txt">Operación registrada.</span></div>
+      </div>
+
+      <!-- ABM PACIENTES -->
+      <div id="abm-pacientes" class="sub-section">
+        <div class="panel-title">Pacientes</div>
+        <div class="panel-sub">Altas, bajas y modificaciones de pacientes</div>
+        <div class="op-row">
+          <button class="op-btn alta active" onclick="setOp('pacientes','alta',this)">Alta</button>
+          <button class="op-btn baja" onclick="setOp('pacientes','baja',this)">Baja</button>
+          <button class="op-btn mod" onclick="setOp('pacientes','mod',this)">Modificación</button>
+        </div>
+        <div id="pacientes-bn" class="baja-notice">Se procederá a dar de baja al paciente.</div>
+        <div id="pacientes-busqueda" class="hidden" style="margin-bottom:1.5rem;">
+          <div class="fg">
+            <label>Buscar paciente</label>
+            <input type="text" id="pac-buscar" placeholder="Escribí parte del nombre..." oninput="buscarRegistro('pacientes')">
+          </div>
+          <div id="pac-resultados" style="margin-top:8px;display:grid;gap:6px;"></div>
+        </div>
+        <div class="sec-lbl">Datos del paciente</div>
+        <div class="grid2">
+          <div class="fg full">
+            <label>Nombre del paciente</label>
+            <input id="pac-nombre" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pac-nombre')">
+            <span class="field-err" id="err-pac-nombre">Ingresá el nombre del paciente.</span>
+          </div>
+          <div class="fg full">
+            <label>Número de cédula</label>
+            <input id="pac-ci" type="text" placeholder="Ej. 1.234.567-8" oninput="clearFErr('pac-ci')">
+            <span class="field-err" id="err-pac-ci">Ingresá el número de cédula.</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="sec-lbl">Referente familiar</div>
+        <div class="grid2">
+          <div class="fg full">
+            <label>Nombre del padre, madre o tutor</label>
+            <input id="pac-tutor" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pac-tutor')">
+            <span class="field-err" id="err-pac-tutor">Ingresá el nombre del referente familiar.</span>
+          </div>
+          <div class="fg">
+            <label>Teléfono del referente</label>
+            <input id="pac-tutor-tel" type="tel" placeholder="+598 99 000 000" oninput="clearFErr('pac-tutor-tel')">
+            <span class="field-err" id="err-pac-tutor-tel">Ingresá el teléfono del referente.</span>
+          </div>
+          <div class="fg">
+            <label>Mail del referente</label>
+            <input id="pac-tutor-mail" type="email" placeholder="referente@mail.com" oninput="clearFErr('pac-tutor-mail')">
+            <span class="field-err" id="err-pac-tutor-mail">Ingresá un mail válido para el referente.</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="sec-lbl">Datos clínicos</div>
+        <div class="grid2">
+          <div class="fg full">
+            <label>Prestador derivante</label>
+            <select id="pac-prest" onchange="onPrestadorChange(); clearFErr('pac-prest')">
+              <option value="">— Seleccionar prestador —</option>
+              <option value="PARTICULAR">PARTICULAR</option>
+              <option value="BPS">BPS</option>
+            </select>
+            <span class="field-err" id="err-pac-prest">Seleccioná el prestador derivante.</span>
+          </div>
+          <div class="fg">
+            <label>Profesional asignado</label>
+            <select id="pac-prof" onchange="clearFErr('pac-prof')">
+              <option value="">— Seleccionar profesional —</option>
+            </select>
+            <span class="field-err" id="err-pac-prof">Seleccioná el profesional asignado.</span>
+          </div>
+          <div class="fg">
+            <label>Fecha de comienzo</label>
+            <input id="pac-fecha-inicio" type="date" oninput="clearFErr('pac-fecha-inicio')">
+            <span class="field-err" id="err-pac-fecha-inicio">Ingresá la fecha de comienzo.</span>
+          </div>
+        </div>
+
+        <div id="bloque-particular" class="hidden">
+          <hr class="divider">
+          <div class="sec-lbl">Plan — Particular</div>
+          <div class="grid2">
+            <div class="fg">
+              <label>Sesiones contratadas</label>
+              <input id="pac-sesiones-p" type="number" min="1" placeholder="Ej. 10" oninput="clearFErr('pac-sesiones-p')">
+              <span class="field-err" id="err-pac-sesiones-p">Ingresá el número de sesiones.</span>
+            </div>
+            <div class="fg">
+              <label>Día de la semana</label>
+              <select id="pac-dia-p" onchange="clearFErr('pac-dia-p')">
+                <option value="">— Seleccionar —</option>
+                <option>Lunes</option><option>Martes</option><option>Miércoles</option>
+                <option>Jueves</option><option>Viernes</option><option>Sábado</option>
+              </select>
+              <span class="field-err" id="err-pac-dia-p">Seleccioná el día.</span>
+            </div>
+            <div class="fg">
+              <label>Horario</label>
+              <select id="pac-hora-p">
+                <option value="">— Seleccionar —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="bloque-bps" class="hidden">
+          <hr class="divider">
+          <div class="sec-lbl">Plan — BPS</div>
+          <div class="grid2">
+            <div class="fg">
+              <label>Fecha de origen</label>
+              <input id="pac-fecha-origen" type="date" oninput="clearFErr('pac-fecha-origen')">
+              <span class="field-err" id="err-pac-fecha-origen">Ingresá la fecha de origen.</span>
+            </div>
+            <div class="fg">
+              <label>Fecha de fin de ciclo</label>
+              <input id="pac-fecha-fin" type="date" oninput="clearFErr('pac-fecha-fin')">
+              <span class="field-err" id="err-pac-fecha-fin">Ingresá la fecha de fin. Debe ser posterior al origen.</span>
+            </div>
+            <div class="fg">
+              <label>Periodicidad</label>
+              <select id="pac-periodicidad" onchange="clearFErr('pac-periodicidad')">
+                <option value="">— Seleccionar —</option>
+                <option>Semanal</option><option>Quincenal</option><option>Mensual</option>
+              </select>
+              <span class="field-err" id="err-pac-periodicidad">Seleccioná la periodicidad.</span>
+            </div>
+            <div class="fg">
+              <label>Día de la semana</label>
+              <select id="pac-dia-bps" onchange="clearFErr('pac-dia-bps')">
+                <option value="">— Seleccionar —</option>
+                <option>Lunes</option><option>Martes</option><option>Miércoles</option>
+                <option>Jueves</option><option>Viernes</option><option>Sábado</option>
+              </select>
+              <span class="field-err" id="err-pac-dia-bps">Seleccioná el día.</span>
+            </div>
+            <div class="fg">
+              <label>Horario</label>
+              <select id="pac-hora-bps">
+                <option value="">— Seleccionar —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="bloque-comun" class="hidden">
+          <hr class="divider">
+          <div class="sec-lbl">Plan — Prestador</div>
+          <div class="grid2">
+            <div class="fg">
+              <label>Sesiones contratadas</label>
+              <input id="pac-sesiones-c" type="number" min="1" placeholder="Ej. 10" oninput="clearFErr('pac-sesiones-c')">
+              <span class="field-err" id="err-pac-sesiones-c">Ingresá el número de sesiones.</span>
+            </div>
+            <div class="fg">
+              <label>Día de la semana</label>
+              <select id="pac-dia-c" onchange="clearFErr('pac-dia-c')">
+                <option value="">— Seleccionar —</option>
+                <option>Lunes</option><option>Martes</option><option>Miércoles</option>
+                <option>Jueves</option><option>Viernes</option><option>Sábado</option>
+              </select>
+              <span class="field-err" id="err-pac-dia-c">Seleccioná el día.</span>
+            </div>
+            <div class="fg">
+              <label>Horario</label>
+              <select id="pac-hora-c">
+                <option value="">— Seleccionar —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('pacientes')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-pacientes" onclick="submitPaciente()">Registrar alta</button>
+        </div>
+        <div id="pacientes-ok" class="ok-msg"><span>✓</span><span>Alta registrada correctamente.</span></div>
+      </div>
+    </div>
+
+    <div id="main-consultas" class="main-section">
+      <div class="sub-nav">
+        <button class="sub-tab active" onclick="switchSub('consultas','prestadores',this)">Prestadores</button>
+        <button class="sub-tab" onclick="switchSub('consultas','profesionales',this)">Profesionales</button>
+        <button class="sub-tab" onclick="switchSub('consultas','pacientes',this)">Pacientes</button>
+        <button class="sub-tab" onclick="switchSub('consultas','asistencia',this);populateAsistPrestSelect();renderAsistencia('admin')">Asistencia</button>
+      </div>
+      <div id="consultas-prestadores" class="sub-section active">
+        <div class="panel-title">Prestadores <span class="count-badge" id="cnt-p">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('prestadores',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:22%">Nombre</th><th style="width:10%">Tipo</th><th style="width:22%">Dirección</th><th style="width:16%">Contacto</th><th style="width:14%">Teléfono</th><th style="width:16%">Mail</th></tr></thead>
+          <tbody id="tbody-p"></tbody>
+        </table></div>
+      </div>
+      <div id="consultas-profesionales" class="sub-section">
+        <div class="panel-title">Profesionales <span class="count-badge" id="cnt-pr">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('profesionales',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:30%">Nombre</th><th style="width:28%">Especialidad</th><th style="width:16%">Teléfono</th><th style="width:26%">Mail</th></tr></thead>
+          <tbody id="tbody-pr"></tbody>
+        </table></div>
+      </div>
+      <div id="consultas-pacientes" class="sub-section">
+        <div class="panel-title">Pacientes <span class="count-badge" id="cnt-pac">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('pacientes',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:22%">Nombre</th><th style="width:14%">Cédula</th><th style="width:16%">Prestador</th><th style="width:18%">Profesional</th><th style="width:16%">Inicio</th><th style="width:14%">Plan</th></tr></thead>
+          <tbody id="tbody-pac"></tbody>
+        </table></div>
+      </div>
+      <div id="consultas-asistencia" class="sub-section">
+        <div class="panel-title">Reporte de asistencia</div>
+        <div class="panel-sub">Pacientes que debían asistir en una fecha determinada</div>
+        <div class="asist-header">
+          <div class="fg">
+            <label>Fecha</label>
+            <input type="date" id="admin-asist-fecha" oninput="renderAsistencia('admin')">
+          </div>
+          <div class="fg">
+            <label>Prestador</label>
+            <select id="admin-asist-prest" onchange="renderAsistencia('admin')">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
+        <div class="asist-stat" id="admin-asist-stat"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th style="width:24%">Paciente</th><th style="width:16%">Cédula</th><th style="width:14%">Prestador</th><th style="width:22%">Profesional</th><th style="width:12%">Día</th><th style="width:12%">Asistencia</th></tr></thead>
+            <tbody id="tbody-asist-admin"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== LISTA PROFESIONALES ======== -->
+  <div id="screen-proflist" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
+    <div class="panel-title" style="margin-bottom:4px;">Profesionales</div>
+    <div class="panel-sub">Seleccioná tu nombre para continuar</div>
+    <div class="prof-list" id="prof-list"></div>
+  </div>
+
+  <!-- ======== MENÚ PROFESIONAL ======== -->
+  <div id="screen-profmenu" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-proflist')">← Profesionales</button>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:2rem;">
+      <div class="prof-avatar" id="pm-avatar" style="width:44px;height:44px;font-size:14px;"></div>
+      <div>
+        <div style="font-size:17px;font-weight:500;color:var(--text-primary);" id="pm-nombre"></div>
+        <div style="font-size:13px;color:var(--text-secondary);" id="pm-esp"></div>
+      </div>
+    </div>
+    <div class="home-grid">
+      <div class="home-card" onclick="goSesion()">
+        <div class="home-card-icon" style="background:#E1F5EE;color:#0F6E56;font-size:20px;">+</div>
+        <div class="home-card-title">Nueva sesión</div>
+        <div class="home-card-sub">Registrar una sesión con un paciente</div>
+      </div>
+      <div class="home-card" onclick="goHistoria()">
+        <div class="home-card-icon" style="background:#E6F1FB;color:#185FA5;font-size:18px;">≡</div>
+        <div class="home-card-title">Historia</div>
+        <div class="home-card-sub">Ver el historial clínico de un paciente</div>
+      </div>
+      <div class="home-card" onclick="goAsistenciaProf()">
+        <div class="home-card-icon" style="background:#E1F5EE;color:#0F6E56;font-size:18px;">✓</div>
+        <div class="home-card-title">Asistencia</div>
+        <div class="home-card-sub">Reporte de asistencia diaria de mis pacientes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== FORMULARIO SESIÓN ======== -->
+  <div id="screen-sesion" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Volver</button>
+    <div class="panel-title">Nueva sesión</div>
+    <div class="panel-sub" id="ses-prof-sub"></div>
+    <div class="fg" style="margin-bottom:1.5rem;">
+      <label>Paciente</label>
+      <select id="ses-paciente" onchange="onSesionPacienteChange()">
+        <option value="">— Seleccionar paciente —</option>
+      </select>
+      <span class="field-err" id="err-ses-paciente">Seleccioná un paciente.</span>
+    </div>
+    <div id="ses-pac-card" class="hidden">
+      <div class="pac-card" id="ses-pac-card-inner"></div>
+      <div class="grid2" style="margin-bottom:1.5rem;">
+        <div class="fg"><label>Fecha</label><input id="ses-fecha" type="text" readonly></div>
+        <div class="fg"><label>Hora</label><input id="ses-hora" type="text" readonly></div>
+      </div>
+      <div class="fg">
+        <label>Observaciones</label>
+        <textarea id="ses-obs" placeholder="Escribí aquí los comentarios y observaciones de la sesión..." style="min-height:220px;" oninput="clearFErr('ses-obs')"></textarea>
+        <span class="field-err" id="err-ses-obs">Ingresá al menos una observación antes de guardar.</span>
+      </div>
+      <div class="submit-row">
+        <button class="btn-sec" onclick="resetSesion()">Limpiar</button>
+        <button class="btn-pri purple" onclick="guardarSesion()">Guardar sesión</button>
+      </div>
+      <div id="ses-ok" class="ok-msg"><span>✓</span><span>Sesión registrada correctamente.</span></div>
+    </div>
+  </div>
+
+  <!-- ======== HISTORIA ======== -->
+  <div id="screen-historia" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Volver</button>
+    <div class="panel-title">Historia clínica</div>
+    <div class="panel-sub" id="hist-prof-sub"></div>
+    <div class="fg" style="margin-bottom:1.5rem;">
+      <label>Paciente</label>
+      <select id="hist-paciente" onchange="onHistoriaPacienteChange()">
+        <option value="">— Seleccionar paciente —</option>
+      </select>
+    </div>
+    <div id="hist-lista" class="hidden">
+      <div class="sec-lbl" style="margin-bottom:12px;">Sesiones registradas</div>
+      <div class="tbl-wrap" style="margin-bottom:1.5rem;">
+        <table>
+          <thead><tr><th style="width:28%">Fecha</th><th style="width:18%">Hora</th><th style="width:54%">Observaciones (vista previa)</th></tr></thead>
+          <tbody id="tbody-sesiones"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="hist-detalle" class="hidden">
+      <button class="btn-back" onclick="document.getElementById('hist-detalle').classList.add('hidden');document.getElementById('hist-lista').classList.remove('hidden');">← Lista de sesiones</button>
+      <div class="sesion-detail">
+        <div class="sesion-detail-header">
+          <div>
+            <div style="font-size:15px;font-weight:500;color:var(--text-primary);" id="det-paciente"></div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;" id="det-fecha-hora"></div>
+          </div>
+          <span class="pill pill-p" id="det-prof-badge"></span>
+        </div>
+        <div class="sec-lbl" style="margin-bottom:8px;">Observaciones</div>
+        <div class="sesion-obs" id="det-obs"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ======== ASISTENCIA PROFESIONAL ======== -->
+  <div id="screen-asistencia" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Volver</button>
+    <div class="panel-title">Reporte de asistencia</div>
+    <div class="panel-sub" id="asist-prof-sub"></div>
+    <div class="asist-header">
+      <div class="fg">
+        <label>Fecha</label>
+        <input type="date" id="prof-asist-fecha" oninput="renderAsistencia('prof')">
+      </div>
+    </div>
+    <div class="asist-stat" id="prof-asist-stat"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:30%">Paciente</th><th style="width:18%">Cédula</th><th style="width:16%">Prestador</th><th style="width:16%">Día</th><th style="width:20%">Asistencia</th></tr></thead>
+        <tbody id="tbody-asist-prof"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────────
+  const CLIENT_ID   = '682911861663-4d11k9fei0bdkmvl1h53e48cl5cte90e.apps.googleusercontent.com';
+  const SHEET_ID    = '1PaYF2zYz0dlNzPPPIkwFX2HylrRtoHzI2CZiXystc-A';
+  const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets';
+  const DISCOVERY   = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+
+  // ─── DB EN MEMORIA ────────────────────────────────────────────
+  const db = {
+    prestadores:  [],
+    profesionales:[],
+    pacientes:    [],
+    sesiones:     []
+  };
+
+  let tokenClient = null;
+  let gapiReady   = false;
+  let gisReady    = false;
+  let accessToken = null;
+
+  // ─── INICIALIZACIÓN GOOGLE ────────────────────────────────────
+  function gapiLoaded() {
+    gapi.load('client', async () => {
+      await gapi.client.init({ discoveryDocs: [DISCOVERY] });
+      gapiReady = true;
+      maybeReady();
+    });
+  }
+
+  function gisLoaded() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) { showAuthErr(); return; }
+        accessToken = resp.access_token;
+        document.getElementById('auth-overlay').classList.add('hidden');
+        setSyncLoading('Cargando datos…');
+        await cargarTodo();
+        setSyncOk();
+      }
+    });
+    gisReady = true;
+    maybeReady();
+  }
+
+  function maybeReady() {
+    if (gapiReady && gisReady) {
+      // Intentar login silencioso si hay token guardado
+      const saved = sessionStorage.getItem('volta_token');
+      if (saved) {
+        gapi.client.setToken({ access_token: saved });
+        accessToken = saved;
+        document.getElementById('auth-overlay').classList.add('hidden');
+        setSyncLoading('Cargando datos…');
+        cargarTodo().then(setSyncOk).catch(() => {
+          sessionStorage.removeItem('volta_token');
+          document.getElementById('auth-overlay').classList.remove('hidden');
+        });
+      }
+    }
+  }
+
+  function iniciarLogin() {
+    if (!tokenClient) { showAuthErr(); return; }
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+
+  function showAuthErr() {
+    document.getElementById('auth-err').classList.add('show');
+  }
+
+  // ─── SYNC UI ──────────────────────────────────────────────────
+  function setSyncLoading(msg) {
+    const dot = document.getElementById('sync-dot');
+    const txt = document.getElementById('sync-txt');
+    dot.className = 'sync-dot loading';
+    txt.textContent = msg || 'Sincronizando…';
+  }
+  function setSyncOk() {
+    const dot = document.getElementById('sync-dot');
+    const txt = document.getElementById('sync-txt');
+    dot.className = 'sync-dot ok';
+    const now = new Date().toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' });
+    txt.textContent = 'Sincronizado ' + now;
+    if (accessToken) sessionStorage.setItem('volta_token', accessToken);
+  }
+  function setSyncErr(msg) {
+    const dot = document.getElementById('sync-dot');
+    const txt = document.getElementById('sync-txt');
+    dot.className = 'sync-dot err';
+    txt.textContent = msg || 'Error al sincronizar';
+  }
+
+  // ─── SHEETS HELPERS ───────────────────────────────────────────
+  async function sheetGet(range) {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range
+    });
+    return res.result.values || [];
+  }
+
+  async function sheetAppend(sheet, values) {
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: sheet + '!A1',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: [values] }
+    });
+  }
+
+  async function sheetClear(sheet) {
+    await gapi.client.sheets.spreadsheets.values.clear({
+      spreadsheetId: SHEET_ID,
+      range: sheet + '!A1:Z10000'
+    });
+  }
+
+  async function sheetWrite(sheet, rows) {
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: sheet + '!A1',
+      valueInputOption: 'RAW',
+      resource: { values: rows }
+    });
+  }
+
+  // ─── CARGA INICIAL ────────────────────────────────────────────
+  async function cargarTodo() {
+    const [pRows, prRows, pacRows, sesRows] = await Promise.all([
+      sheetGet('Prestadores!A2:F'),
+      sheetGet('Profesionales!A2:D'),
+      sheetGet('Pacientes!A2:P'),
+      sheetGet('Sesiones!A2:E')
+    ]);
+
+    db.prestadores = [
+      { nombre: 'PARTICULAR', tipo: 'fijo', dir: '—', contacto: '—', tel: '—', mail: '—' },
+      { nombre: 'BPS', tipo: 'fijo', dir: '—', contacto: 'Oficina BPS Montevideo', tel: '+598 2400 0000', mail: 'bps@bps.gub.uy' }
+    ];
+    pRows.forEach(r => {
+      if (r[0]) db.prestadores.push({ nombre: r[0], tipo: 'comun', dir: r[1]||'', contacto: r[2]||'', tel: r[3]||'', mail: r[4]||'' });
+    });
+
+    db.profesionales = prRows.filter(r=>r[0]).map(r => ({
+      nombre: r[0], esp: r[1]||'', tel: r[2]||'', mail: r[3]||''
+    }));
+
+    db.pacientes = pacRows.filter(r=>r[0]).map(r => {
+      const pac = {
+        nombre: r[0], ci: r[1]||'', tutor: r[2]||'', tutorTel: r[3]||'', tutorMail: r[4]||'',
+        prestador: r[5]||'', profesional: r[6]||'', fechaInicio: r[7]||'', tipo: r[8]||'comun', dia: r[9]||'', hora: r[10]||''
+      };
+      if (pac.tipo === 'particular') { pac.sesiones = r[11]||''; }
+      else if (pac.tipo === 'bps')   { pac.fechaOrigen = r[11]||''; pac.fechaFin = r[12]||''; pac.periodicidad = r[13]||''; }
+      else                           { pac.sesiones = r[11]||''; }
+      return pac;
+    });
+
+    db.sesiones = sesRows.filter(r=>r[0]).map(r => ({
+      paciente: r[0], profesional: r[1]||'', fecha: r[2]||'', hora: r[3]||'', obs: r[4]||''
+    }));
+
+    populatePrestadorSelect();
+    populateProfesionalSelect();
+    populateAsistPrestSelect();
+    renderProfList();
+    updateCounts();
+    ['prestadores','profesionales','pacientes'].forEach(k => renderQ(k,''));
+  }
+
+  // ─── GUARDAR EN SHEETS ────────────────────────────────────────
+  async function guardarPrestadores() {
+    const rows = db.prestadores
+      .filter(p => p.tipo === 'comun')
+      .map(p => [p.nombre, p.dir, p.contacto, p.tel, p.mail]);
+    await sheetClear('Prestadores');
+    if (rows.length) await sheetWrite('Prestadores', rows);
+  }
+
+  async function guardarProfesionales() {
+    const rows = db.profesionales.map(p => [p.nombre, p.esp, p.tel, p.mail]);
+    await sheetClear('Profesionales');
+    if (rows.length) await sheetWrite('Profesionales', rows);
+  }
+
+  async function guardarPacientes() {
+    const rows = db.pacientes.map(p => {
+      const base = [p.nombre, p.ci, p.tutor, p.tutorTel, p.tutorMail, p.prestador, p.profesional, p.fechaInicio, p.tipo, p.dia, p.hora||''];
+      if (p.tipo === 'bps') return [...base, p.fechaOrigen||'', p.fechaFin||'', p.periodicidad||''];
+      return [...base, p.sesiones||''];
+    });
+    await sheetClear('Pacientes');
+    if (rows.length) await sheetWrite('Pacientes', rows);
+  }
+
+  async function guardarSesionSheet(ses) {
+    await sheetAppend('Sesiones', [ses.paciente, ses.profesional, ses.fecha, ses.hora, ses.obs]);
+  }
+
+  // ─── ESTADO ───────────────────────────────────────────────────
+  let profesionalActivo = null;
+  const opState = { prestadores: 'alta', profesionales: 'alta', pacientes: 'alta' };
+  const btnLabels = { alta: 'Registrar alta', baja: 'Confirmar baja', mod: 'Guardar cambios' };
+  const btnClasses = { alta: 'alta', baja: 'baja', mod: 'mod' };
+
+  // ─── NAVEGACIÓN ───────────────────────────────────────────────
+  function goScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function goAdmin() {
+    updateCounts();
+    ['prestadores', 'profesionales', 'pacientes'].forEach(k => renderQ(k, ''));
+    goScreen('screen-admin');
+  }
+
+  function switchMain(id, el) {
+    document.querySelectorAll('.main-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('main-' + id).classList.add('active');
+    el.classList.add('active');
+    if (id === 'consultas') { updateCounts(); ['prestadores', 'profesionales', 'pacientes'].forEach(k => renderQ(k, '')); document.getElementById('admin-asist-fecha').value = todayISO(); populateAsistPrestSelect(); renderAsistencia('admin'); }
+  }
+
+  function switchSub(main, sub, el) {
+    const parent = document.getElementById('main-' + main);
+    parent.querySelectorAll('.sub-section').forEach(s => s.classList.remove('active'));
+    parent.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(main + '-' + sub).classList.add('active');
+    el.classList.add('active');
+    if (main === 'consultas') renderQ(sub, '');
+  }
+
+  // ─── PROFESIONALES ────────────────────────────────────────────
+  function renderProfList() {
+    const list = document.getElementById('prof-list');
+    list.innerHTML = db.profesionales.map((p, i) => {
+      const ini = p.nombre.split(' ').filter(w => /[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0, 2).map(w => w[0]).join('');
+      return `<div class="prof-item" onclick="selectProf(${i})">
+        <div class="prof-avatar">${ini}</div>
+        <div><div class="prof-item-name">${esc(p.nombre)}</div><div class="prof-item-esp">${esc(p.esp)}</div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function selectProf(i) {
+    profesionalActivo = db.profesionales[i];
+    const ini = profesionalActivo.nombre.split(' ').filter(w => /[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0, 2).map(w => w[0]).join('');
+    document.getElementById('pm-avatar').textContent = ini;
+    document.getElementById('pm-nombre').textContent = profesionalActivo.nombre;
+    document.getElementById('pm-esp').textContent = profesionalActivo.esp;
+    goScreen('screen-profmenu');
+  }
+
+  // ─── SESIÓN ───────────────────────────────────────────────────
+  function goSesion() {
+    document.getElementById('ses-prof-sub').textContent = profesionalActivo.nombre + ' — ' + profesionalActivo.esp;
+    const sel = document.getElementById('ses-paciente');
+    sel.innerHTML = '<option value="">— Seleccionar paciente —</option>';
+    db.pacientes.filter(p => p.profesional === profesionalActivo.nombre).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+    });
+    sel.value = '';
+    document.getElementById('ses-pac-card').classList.add('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+    clearFErr('ses-paciente');
+    goScreen('screen-sesion');
+  }
+
+  function onSesionPacienteChange() {
+    const nombre = document.getElementById('ses-paciente').value;
+    clearFErr('ses-paciente');
+    if (!nombre) { document.getElementById('ses-pac-card').classList.add('hidden'); return; }
+    const pac = db.pacientes.find(p => p.nombre === nombre);
+    if (!pac) return;
+    const tipoPill = pac.tipo === 'particular' ? 'pill-p' : pac.tipo === 'bps' ? 'pill-b' : 'pill-c';
+    const tipoLabel = pac.tipo === 'particular' ? 'Particular' : pac.tipo === 'bps' ? 'BPS' : 'Prestador';
+    document.getElementById('ses-pac-card-inner').innerHTML = `
+      <div class="pac-card-row"><span class="pac-card-lbl">Cédula</span><span class="pac-card-val">${esc(pac.ci)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Tutor</span><span class="pac-card-val">${esc(pac.tutor)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Teléfono referente</span><span class="pac-card-val">${esc(pac.tutorTel)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Prestador</span><span class="pac-card-val"><span class="pill ${tipoPill}">${esc(pac.prestador)}</span></span></div>
+      ${pac.dia ? `<div class="pac-card-row"><span class="pac-card-lbl">Día y horario</span><span class="pac-card-val">${esc(pac.dia)}${pac.hora ? ' ' + esc(pac.hora) : ''}</span></div>` : ''}
+    `;
+    const now = new Date();
+    document.getElementById('ses-fecha').value = now.toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    document.getElementById('ses-hora').value = now.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('ses-obs').value = '';
+    document.getElementById('ses-pac-card').classList.remove('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+  }
+
+  function resetSesion() {
+    document.getElementById('ses-paciente').value = '';
+    document.getElementById('ses-obs').value = '';
+    document.getElementById('ses-pac-card').classList.add('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+    clearFErr('ses-paciente'); clearFErr('ses-obs');
+  }
+
+  async function guardarSesion() {
+    let ok = true;
+    const pac = document.getElementById('ses-paciente').value;
+    if (!pac) { showFErr('ses-paciente', 'Seleccioná un paciente.'); ok = false; } else clearFErr('ses-paciente');
+    const obs = document.getElementById('ses-obs').value.trim();
+    if (!obs) { showFErr('ses-obs', 'Ingresá al menos una observación antes de guardar.'); ok = false; } else clearFErr('ses-obs');
+    if (!ok) return;
+    const now = new Date();
+    const ses = {
+      paciente: pac,
+      profesional: profesionalActivo.nombre,
+      fecha: now.toISOString().slice(0, 10),
+      hora: now.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }),
+      obs
+    };
+    db.sesiones.push(ses);
+    document.getElementById('ses-ok').classList.add('show');
+    setSyncLoading('Guardando sesión…');
+    try {
+      await guardarSesionSheet(ses);
+      setSyncOk();
+    } catch(e) { setSyncErr('Error al guardar sesión'); }
+    setTimeout(() => resetSesion(), 1000);
+  }
+
+  // ─── HISTORIA ─────────────────────────────────────────────────
+  function goHistoria() {
+    document.getElementById('hist-prof-sub').textContent = profesionalActivo.nombre + ' — ' + profesionalActivo.esp;
+    const sel = document.getElementById('hist-paciente');
+    sel.innerHTML = '<option value="">— Seleccionar paciente —</option>';
+    db.pacientes.filter(p => p.profesional === profesionalActivo.nombre).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+    });
+    sel.value = '';
+    document.getElementById('hist-lista').classList.add('hidden');
+    document.getElementById('hist-detalle').classList.add('hidden');
+    goScreen('screen-historia');
+  }
+
+  function onHistoriaPacienteChange() {
+    const nombre = document.getElementById('hist-paciente').value;
+    document.getElementById('hist-detalle').classList.add('hidden');
+    if (!nombre) { document.getElementById('hist-lista').classList.add('hidden'); return; }
+    const sesiones = db.sesiones
+      .filter(s => s.paciente === nombre && s.profesional === profesionalActivo.nombre)
+      .sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    const tbody = document.getElementById('tbody-sesiones');
+    tbody.innerHTML = sesiones.length
+      ? sesiones.map(s => {
+          const idx = db.sesiones.indexOf(s);
+          return `<tr class="clickable" onclick="verSesion('${nombre.replace(/'/g,"\\'")}',${idx})">
+            <td>${fmtFecha(s.fecha)}</td>
+            <td>${esc(s.hora)}</td>
+            <td style="color:var(--text-secondary)">${esc(s.obs.slice(0, 60))}${s.obs.length > 60 ? '…' : ''}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin sesiones registradas para este paciente.</td></tr>`;
+    document.getElementById('hist-lista').classList.remove('hidden');
+  }
+
+  function verSesion(pacNombre, idx) {
+    const s = db.sesiones[idx];
+    document.getElementById('det-paciente').textContent = pacNombre;
+    document.getElementById('det-fecha-hora').textContent = fmtFecha(s.fecha) + ' — ' + s.hora;
+    document.getElementById('det-prof-badge').textContent = profesionalActivo.nombre;
+    document.getElementById('det-obs').textContent = s.obs;
+    document.getElementById('hist-lista').classList.add('hidden');
+    document.getElementById('hist-detalle').classList.remove('hidden');
+  }
+
+  // ─── ABM ──────────────────────────────────────────────────────
+  function setOp(form, op, btn) {
+    opState[form] = op;
+    btn.closest('.op-row').querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(form + '-bn').classList.toggle('show', op === 'baja');
+    const busq = document.getElementById(form + '-busqueda');
+    if (busq) busq.classList.toggle('hidden', op === 'alta');
+    const sb = document.getElementById('btn-' + form);
+    sb.textContent = btnLabels[op]; sb.className = 'btn-pri ' + btnClasses[op];
+    document.getElementById(form + '-ok').classList.remove('show');
+  }
+
+  function onPrestadorChange() {
+    const val = document.getElementById('pac-prest').value;
+    ['bloque-particular', 'bloque-bps', 'bloque-comun'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    if (val === 'PARTICULAR') document.getElementById('bloque-particular').classList.remove('hidden');
+    else if (val === 'BPS') document.getElementById('bloque-bps').classList.remove('hidden');
+    else if (val) document.getElementById('bloque-comun').classList.remove('hidden');
+  }
+
+  function populatePrestadorSelect() {
+    const sel = document.getElementById('pac-prest');
+    const cur = sel.value;
+    while (sel.options.length > 3) sel.remove(3);
+    db.prestadores.filter(p => p.tipo === 'comun').forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+    });
+    sel.value = cur;
+  }
+
+  function populateProfesionalSelect() {
+    const sel = document.getElementById('pac-prof');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Seleccionar profesional —</option>';
+    db.profesionales.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nombre; o.textContent = p.nombre + (p.esp ? ' (' + p.esp + ')' : ''); sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+  }
+
+  function getVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function showFErr(id, msg) { const el = document.getElementById(id); const err = document.getElementById('err-' + id); if (el) el.classList.add('err'); if (err) { if (msg) err.textContent = msg; err.classList.add('show'); } }
+  function clearFErr(id) { const el = document.getElementById(id); const err = document.getElementById('err-' + id); if (el) el.classList.remove('err'); if (err) err.classList.remove('show'); }
+  function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  function resetF(form) {
+    const ids = {
+      prestadores: ['p-nombre', 'p-dir', 'p-contacto', 'p-tel', 'p-mail'],
+      profesionales: ['pr-nombre', 'pr-esp', 'pr-tel', 'pr-mail'],
+      pacientes: ['pac-nombre', 'pac-ci', 'pac-tutor', 'pac-tutor-tel', 'pac-tutor-mail',
+        'pac-prest', 'pac-prof', 'pac-fecha-inicio', 'pac-sesiones-p', 'pac-dia-p', 'pac-hora-p',
+        'pac-fecha-origen', 'pac-fecha-fin', 'pac-periodicidad', 'pac-dia-bps', 'pac-hora-bps',
+        'pac-sesiones-c', 'pac-dia-c', 'pac-hora-c']
+    };
+    ids[form].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.classList.remove('err'); }
+      const err = document.getElementById('err-' + id);
+      if (err) err.classList.remove('show');
+    });
+    if (form === 'pacientes') ['bloque-particular', 'bloque-bps', 'bloque-comun'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    // Limpiar búsqueda
+    const buscarId = form === 'prestadores' ? 'p-buscar' : form === 'profesionales' ? 'pr-buscar' : 'pac-buscar';
+    const resId    = form === 'prestadores' ? 'p-resultados' : form === 'profesionales' ? 'pr-resultados' : 'pac-resultados';
+    const buscarEl = document.getElementById(buscarId);
+    const resEl    = document.getElementById(resId);
+    if (buscarEl) buscarEl.value = '';
+    if (resEl) resEl.innerHTML = '';
+    document.getElementById(form + '-ok').classList.remove('show');
+  }
+
+  async function submitF(form) {
+    let ok = true;
+    const req = (id) => { if (!getVal(id)) { showFErr(id); ok = false; } else clearFErr(id); };
+    if (form === 'prestadores') {
+      ['p-nombre', 'p-dir', 'p-contacto', 'p-tel', 'p-mail'].forEach(req);
+      if (!ok) return;
+      const nombre = getVal('p-nombre');
+      const datos = { dir: getVal('p-dir'), contacto: getVal('p-contacto'), tel: getVal('p-tel'), mail: getVal('p-mail') };
+      if (opState[form] === 'alta') {
+        db.prestadores.push({ nombre, tipo: 'comun', ...datos });
+      } else if (opState[form] === 'mod') {
+        const bps = db.prestadores.find(p => p.nombre === 'BPS');
+        const existing = db.prestadores.find(p => p.nombre === nombre && p.tipo !== 'fijo');
+        if (bps && nombre === 'BPS') { Object.assign(bps, datos); }
+        else if (existing) { Object.assign(existing, datos); }
+        else { db.prestadores.push({ nombre, tipo: 'comun', ...datos }); }
+      } else if (opState[form] === 'baja') {
+        const idx = db.prestadores.findIndex(p => p.nombre === nombre && p.tipo === 'comun');
+        if (idx >= 0) db.prestadores.splice(idx, 1);
+      }
+      populatePrestadorSelect();
+      setSyncLoading('Guardando…');
+      try { await guardarPrestadores(); setSyncOk(); } catch(e) { setSyncErr('Error al guardar'); }
+    } else if (form === 'profesionales') {
+      ['pr-nombre', 'pr-esp', 'pr-tel', 'pr-mail'].forEach(req);
+      if (!ok) return;
+      const nombre = getVal('pr-nombre');
+      const datos = { esp: getVal('pr-esp'), tel: getVal('pr-tel'), mail: getVal('pr-mail') };
+      if (opState[form] === 'alta') {
+        db.profesionales.push({ nombre, ...datos });
+      } else if (opState[form] === 'mod') {
+        const existing = db.profesionales.find(p => p.nombre === nombre);
+        if (existing) { Object.assign(existing, datos); }
+        else { db.profesionales.push({ nombre, ...datos }); }
+      } else if (opState[form] === 'baja') {
+        const idx = db.profesionales.findIndex(p => p.nombre === nombre);
+        if (idx >= 0) db.profesionales.splice(idx, 1);
+      }
+      populateProfesionalSelect(); renderProfList();
+      setSyncLoading('Guardando…');
+      try { await guardarProfesionales(); setSyncOk(); } catch(e) { setSyncErr('Error al guardar'); }
+    }
+    const msgs = { alta: 'Alta registrada correctamente.', baja: 'Baja registrada correctamente.', mod: 'Modificación guardada correctamente.' };
+    document.getElementById(form + '-ok-txt').textContent = msgs[opState[form]];
+    document.getElementById(form + '-ok').classList.add('show');
+    updateCounts();
+    setTimeout(() => resetF(form), 1000);
+  }
+
+  async function submitPaciente() {
+    let ok = true;
+    const req = (id, msg) => { if (!getVal(id)) { showFErr(id, msg); ok = false; } else clearFErr(id); };
+    req('pac-nombre', 'Ingresá el nombre del paciente.');
+    req('pac-ci', 'Ingresá el número de cédula.');
+    req('pac-tutor', 'Ingresá el nombre del referente familiar.');
+    req('pac-tutor-tel', 'Ingresá el teléfono del referente.');
+    const tm = getVal('pac-tutor-mail');
+    if (!tm) { showFErr('pac-tutor-mail', 'Ingresá el mail del referente.'); ok = false; }
+    else if (!isValidEmail(tm)) { showFErr('pac-tutor-mail', 'El mail no tiene un formato válido.'); ok = false; }
+    else clearFErr('pac-tutor-mail');
+    req('pac-prest', 'Seleccioná el prestador derivante.');
+    req('pac-prof', 'Seleccioná el profesional asignado.');
+    req('pac-fecha-inicio', 'Ingresá la fecha de comienzo del tratamiento.');
+    const prest = getVal('pac-prest');
+    let tipo = 'comun';
+    if (prest === 'PARTICULAR') {
+      tipo = 'particular';
+      req('pac-sesiones-p', 'Ingresá el número de sesiones contratadas.');
+      req('pac-dia-p', 'Seleccioná el día en que asistirá el paciente.');
+    } else if (prest === 'BPS') {
+      tipo = 'bps';
+      req('pac-fecha-origen', 'Ingresá la fecha de origen del ciclo BPS.');
+      const fo = getVal('pac-fecha-origen'), ff = getVal('pac-fecha-fin');
+      if (!ff) { showFErr('pac-fecha-fin', 'Ingresá la fecha de fin de ciclo.'); ok = false; }
+      else if (fo && ff && ff <= fo) { showFErr('pac-fecha-fin', 'La fecha de fin debe ser posterior a la fecha de origen.'); ok = false; }
+      else clearFErr('pac-fecha-fin');
+      req('pac-periodicidad', 'Seleccioná la periodicidad de las consultas.');
+      req('pac-dia-bps', 'Seleccioná el día en que asistirá el paciente.');
+    } else if (prest) {
+      tipo = 'comun';
+      req('pac-sesiones-c', 'Ingresá el número de sesiones contratadas.');
+      req('pac-dia-c', 'Seleccioná el día en que asistirá el paciente.');
+    }
+    if (!ok) return;
+    const pac = { nombre: getVal('pac-nombre'), ci: getVal('pac-ci'), tutor: getVal('pac-tutor'), tutorTel: getVal('pac-tutor-tel'), tutorMail: tm, prestador: prest, profesional: getVal('pac-prof'), fechaInicio: getVal('pac-fecha-inicio'), tipo, dia: '', hora: '' };
+    if (tipo === 'particular') { pac.sesiones = getVal('pac-sesiones-p'); pac.dia = getVal('pac-dia-p'); pac.hora = getVal('pac-hora-p'); }
+    else if (tipo === 'bps') { pac.fechaOrigen = getVal('pac-fecha-origen'); pac.fechaFin = getVal('pac-fecha-fin'); pac.periodicidad = getVal('pac-periodicidad'); pac.dia = getVal('pac-dia-bps'); pac.hora = getVal('pac-hora-bps'); }
+    else { pac.sesiones = getVal('pac-sesiones-c'); pac.dia = getVal('pac-dia-c'); pac.hora = getVal('pac-hora-c'); }
+    db.pacientes.push(pac);
+    document.getElementById('pacientes-ok').classList.add('show');
+    updateCounts();
+    setSyncLoading('Guardando…');
+    try { await guardarPacientes(); setSyncOk(); } catch(e) { setSyncErr('Error al guardar'); }
+    setTimeout(() => resetF('pacientes'), 1000);
+  }
+
+  function updateCounts() {
+    document.getElementById('cnt-p').textContent = db.prestadores.length;
+    document.getElementById('cnt-pr').textContent = db.profesionales.length;
+    document.getElementById('cnt-pac').textContent = db.pacientes.length;
+  }
+
+  function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function fmtFecha(f) { if (!f || f === '—') return f || ''; const [y, m, d] = f.split('-'); return d && m && y ? `${d}/${m}/${y}` : f; }
+
+  function renderQ(type, q) {
+    q = (q || '').toLowerCase();
+    if (type === 'prestadores') {
+      const rows = db.prestadores.filter(r => !q || r.nombre.toLowerCase().includes(q) || r.dir.toLowerCase().includes(q) || r.contacto.toLowerCase().includes(q));
+      document.getElementById('tbody-p').innerHTML = rows.length
+        ? rows.map(r => { const pc = r.nombre === 'PARTICULAR' ? 'pill pill-p' : r.nombre === 'BPS' ? 'pill pill-b' : 'pill pill-c'; const pt = r.nombre === 'PARTICULAR' ? 'Particular' : r.nombre === 'BPS' ? 'BPS' : 'Común'; return `<tr><td>${esc(r.nombre)}</td><td><span class="${pc}">${pt}</span></td><td>${esc(r.dir)}</td><td>${esc(r.contacto)}</td><td>${esc(r.tel)}</td><td>${esc(r.mail)}</td></tr>`; }).join('')
+        : `<tr><td colspan="6" class="empty-state">Sin resultados</td></tr>`;
+    } else if (type === 'profesionales') {
+      const rows = db.profesionales.filter(r => !q || r.nombre.toLowerCase().includes(q) || r.esp.toLowerCase().includes(q));
+      document.getElementById('tbody-pr').innerHTML = rows.length
+        ? rows.map(r => `<tr><td>${esc(r.nombre)}</td><td>${esc(r.esp)}</td><td>${esc(r.tel)}</td><td>${esc(r.mail)}</td></tr>`).join('')
+        : `<tr><td colspan="4" class="empty-state">Sin resultados</td></tr>`;
+    } else if (type === 'pacientes') {
+      const rows = db.pacientes.filter(r => !q || r.nombre.toLowerCase().includes(q) || r.ci.toLowerCase().includes(q) || r.prestador.toLowerCase().includes(q));
+      document.getElementById('tbody-pac').innerHTML = rows.length
+        ? rows.map(r => { const pc = r.tipo === 'particular' ? 'pill pill-p' : r.tipo === 'bps' ? 'pill pill-b' : 'pill pill-c'; const plan = r.tipo === 'bps' ? esc(r.periodicidad || '') : `${esc(r.sesiones || '')} ses.`; return `<tr><td>${esc(r.nombre)}</td><td>${esc(r.ci)}</td><td><span class="${pc}">${esc(r.prestador)}</span></td><td>${esc(r.profesional)}</td><td>${fmtFecha(r.fechaInicio)}</td><td>${plan}</td></tr>`; }).join('')
+        : `<tr><td colspan="6" class="empty-state">Sin resultados</td></tr>`;
+    }
+  }
+
+  // ─── ASISTENCIA ───────────────────────────────────────────────
+  const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+  function goAsistenciaProf() {
+    document.getElementById('asist-prof-sub').textContent = profesionalActivo.nombre + ' — ' + profesionalActivo.esp;
+    document.getElementById('prof-asist-fecha').value = todayISO();
+    renderAsistencia('prof');
+    goScreen('screen-asistencia');
+  }
+
+  function pacienteAsistioEnFecha(pac, fechaISO) {
+    return db.sesiones.some(s => s.paciente === pac.nombre && s.profesional === pac.profesional && s.fecha === fechaISO);
+  }
+
+  function pacienteCorrespondeFecha(pac, fechaISO) {
+    const diaSemana = DIAS_SEMANA[new Date(fechaISO + 'T12:00:00').getDay()];
+    if (pac.dia !== diaSemana) return false;
+    if (pac.tipo === 'bps') {
+      if (pac.fechaOrigen && fechaISO < pac.fechaOrigen) return false;
+      if (pac.fechaFin && fechaISO > pac.fechaFin) return false;
+    }
+    return true;
+  }
+
+  function populateAsistPrestSelect() {
+    const sel = document.getElementById('admin-asist-prest');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos</option>';
+    db.prestadores.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+    });
+    sel.value = cur || 'BPS';
+  }
+
+  function renderAsistencia(modo) {
+    const fechaId = modo === 'admin' ? 'admin-asist-fecha' : 'prof-asist-fecha';
+    const tbodyId = modo === 'admin' ? 'tbody-asist-admin' : 'tbody-asist-prof';
+    const statId  = modo === 'admin' ? 'admin-asist-stat'  : 'prof-asist-stat';
+    const fechaISO = document.getElementById(fechaId).value;
+    const tbody = document.getElementById(tbodyId);
+    const stat  = document.getElementById(statId);
+
+    if (!fechaISO) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Seleccioná una fecha para ver el reporte.</td></tr>`;
+      stat.innerHTML = '';
+      return;
+    }
+
+    const diaSemana = DIAS_SEMANA[new Date(fechaISO + 'T12:00:00').getDay()];
+    let candidatos = db.pacientes.filter(pac => pacienteCorrespondeFecha(pac, fechaISO));
+    if (modo === 'admin') {
+      const prestFiltro = document.getElementById('admin-asist-prest').value;
+      if (prestFiltro) candidatos = candidatos.filter(pac => pac.prestador === prestFiltro);
+    }
+    if (modo === 'prof' && profesionalActivo) {
+      candidatos = candidatos.filter(pac => pac.profesional === profesionalActivo.nombre);
+    }
+
+    if (!candidatos.length) {
+      const cols = modo === 'admin' ? 6 : 5;
+      tbody.innerHTML = `<tr><td colspan="${cols}" class="empty-state">No hay pacientes programados para el ${diaSemana} ${fmtFecha(fechaISO)}.</td></tr>`;
+      stat.innerHTML = '';
+      return;
+    }
+
+    let asistieron = 0;
+    const rows = candidatos.map(pac => {
+      const asistio = pacienteAsistioEnFecha(pac, fechaISO);
+      if (asistio) asistieron++;
+      const tipoPill = pac.tipo === 'particular' ? 'pill-p' : pac.tipo === 'bps' ? 'pill-b' : 'pill-c';
+      const tipoLabel = pac.tipo === 'particular' ? 'Particular' : pac.tipo === 'bps' ? 'BPS' : 'Común';
+      const asistCol = asistio ? `<span class="asist-ok">✓ Asistió</span>` : `<span class="asist-no">✗ Sin sesión</span>`;
+      if (modo === 'admin') {
+        return `<tr><td>${esc(pac.nombre)}</td><td>${esc(pac.ci)}</td><td><span class="pill ${tipoPill}">${tipoLabel}</span></td><td>${esc(pac.profesional)}</td><td>${esc(pac.dia)}</td><td>${asistCol}</td></tr>`;
+      } else {
+        return `<tr><td>${esc(pac.nombre)}</td><td>${esc(pac.ci)}</td><td><span class="pill ${tipoPill}">${tipoLabel}</span></td><td>${esc(pac.dia)}</td><td>${asistCol}</td></tr>`;
+      }
+    }).join('');
+
+    tbody.innerHTML = rows;
+    const ausentes = candidatos.length - asistieron;
+    stat.innerHTML = `
+      <div class="asist-stat-box"><div class="asist-stat-num">${candidatos.length}</div><div class="asist-stat-lbl">Programados</div></div>
+      <div class="asist-stat-box" style="border-color:#5DCAA5;background:#E1F5EE;"><div class="asist-stat-num" style="color:#0F6E56;">${asistieron}</div><div class="asist-stat-lbl" style="color:#0F6E56;">Asistieron</div></div>
+      <div class="asist-stat-box" style="border-color:#F0997B;background:#FAECE7;"><div class="asist-stat-num" style="color:#993C1D;">${ausentes}</div><div class="asist-stat-lbl" style="color:#993C1D;">Sin sesión</div></div>`;
+  }
+
+  // ─── HORARIOS ─────────────────────────────────────────────────
+  function generarHorarios() {
+    const opts = ['<option value="">— Seleccionar —</option>'];
+    for (let h = 7; h <= 21; h++) {
+      ['00','15','30','45'].forEach(m => {
+        const label = `${String(h).padStart(2,'0')}:${m}`;
+        opts.push(`<option value="${label}">${label}</option>`);
+      });
+    }
+    return opts.join('');
+  }
+  const horariosHTML = generarHorarios();
+  ['pac-hora-p','pac-hora-bps','pac-hora-c'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = horariosHTML;
+  });
+
+  // ─── BÚSQUEDA EN ABM ──────────────────────────────────────────
+  function buscarRegistro(form) {
+    const q = document.getElementById(
+      form === 'prestadores' ? 'p-buscar' : form === 'profesionales' ? 'pr-buscar' : 'pac-buscar'
+    ).value.toLowerCase().trim();
+    const cont = document.getElementById(
+      form === 'prestadores' ? 'p-resultados' : form === 'profesionales' ? 'pr-resultados' : 'pac-resultados'
+    );
+    if (!q) { cont.innerHTML = ''; return; }
+    let items = db[form].filter(r => r.nombre.toLowerCase().includes(q));
+    if (form === 'prestadores') items = items.filter(r => r.tipo !== 'fijo');
+    if (!items.length) {
+      cont.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary);padding:8px 0;">Sin resultados.</div>';
+      return;
+    }
+    cont.innerHTML = items.map((r, i) => {
+      const idx = db[form].indexOf(r);
+      return `<div onclick="seleccionarRegistro('${form}',${idx})" style="padding:10px 14px;border:0.5px solid var(--border-strong);border-radius:var(--radius-md);cursor:pointer;font-size:13px;background:var(--bg);transition:background 0.15s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='var(--bg)'">${esc(r.nombre)}${r.esp ? ' <span style="color:var(--text-secondary)">· '+esc(r.esp)+'</span>' : ''}</div>`;
+    }).join('');
+  }
+
+  function seleccionarRegistro(form, idx) {
+    const r = db[form][idx];
+    if (form === 'prestadores') {
+      document.getElementById('p-nombre').value  = r.nombre;
+      document.getElementById('p-dir').value     = r.dir;
+      document.getElementById('p-contacto').value= r.contacto;
+      document.getElementById('p-tel').value     = r.tel;
+      document.getElementById('p-mail').value    = r.mail;
+    } else if (form === 'profesionales') {
+      document.getElementById('pr-nombre').value = r.nombre;
+      document.getElementById('pr-esp').value    = r.esp;
+      document.getElementById('pr-tel').value    = r.tel;
+      document.getElementById('pr-mail').value   = r.mail;
+    } else if (form === 'pacientes') {
+      document.getElementById('pac-nombre').value      = r.nombre;
+      document.getElementById('pac-ci').value          = r.ci;
+      document.getElementById('pac-tutor').value       = r.tutor;
+      document.getElementById('pac-tutor-tel').value   = r.tutorTel;
+      document.getElementById('pac-tutor-mail').value  = r.tutorMail;
+      document.getElementById('pac-prest').value       = r.prestador;
+      onPrestadorChange();
+      document.getElementById('pac-prof').value        = r.profesional;
+      document.getElementById('pac-fecha-inicio').value= r.fechaInicio;
+      if (r.tipo === 'particular') {
+        document.getElementById('pac-sesiones-p').value = r.sesiones||'';
+        document.getElementById('pac-dia-p').value      = r.dia||'';
+        document.getElementById('pac-hora-p').value     = r.hora||'';
+      } else if (r.tipo === 'bps') {
+        document.getElementById('pac-fecha-origen').value  = r.fechaOrigen||'';
+        document.getElementById('pac-fecha-fin').value     = r.fechaFin||'';
+        document.getElementById('pac-periodicidad').value  = r.periodicidad||'';
+        document.getElementById('pac-dia-bps').value       = r.dia||'';
+        document.getElementById('pac-hora-bps').value      = r.hora||'';
+      } else {
+        document.getElementById('pac-sesiones-c').value = r.sesiones||'';
+        document.getElementById('pac-dia-c').value      = r.dia||'';
+        document.getElementById('pac-hora-c').value     = r.hora||'';
+      }
+    }
+    // Ocultar resultados
+    document.getElementById(form === 'prestadores' ? 'p-resultados' : form === 'profesionales' ? 'pr-resultados' : 'pac-resultados').innerHTML = '';
+    document.getElementById(form === 'prestadores' ? 'p-buscar' : form === 'profesionales' ? 'pr-buscar' : 'pac-buscar').value = '';
+  }
+
+  // ─── ARRANQUE ─────────────────────────────────────────────────
+  window.gapiLoaded = gapiLoaded;
+  window.gisLoaded  = gisLoaded;
+</script>
+</body>
+</html>
