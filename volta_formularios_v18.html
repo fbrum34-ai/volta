@@ -234,8 +234,8 @@
   <div id="screen-admin" class="screen">
     <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
     <div class="main-nav">
-      <button class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
-      <button class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
+      <button id="tab-abm" class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
+      <button id="tab-consultas" class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
     </div>
 
     <div id="main-abm" class="main-section active">
@@ -1042,7 +1042,7 @@
     updateCounts(); ['prestadores','profesionales','pacientes'].forEach(k=>renderQ(k,''));
     goScreen('screen-admin');
     // Asegurar que ABM esté activo y su primer sub-tab también
-    const abmTab=document.querySelector('.main-tab');
+    const abmTab=document.getElementById('tab-abm');
     if(abmTab&&!abmTab.classList.contains('active')) switchMain('abm',abmTab);
   }
   function switchMain(id, el) {
@@ -1468,10 +1468,9 @@
   }
 
   function volverDeEdicion() {
-    // Volver a consultas, tab activo
     goAdmin();
-    switchMain('consultas', document.querySelector('.main-tab:not(.active)'));
-    // Activar la pestaña correcta
+    const consultasTab = document.getElementById('tab-consultas');
+    if (consultasTab) switchMain('consultas', consultasTab);
     const tabMap = { prestadores:0, profesionales:1, pacientes:2, vinculos:2 };
     const type = editContext.type;
     const subIdx = tabMap[type] ?? 0;
