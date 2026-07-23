@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volta — Gestión</title>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+  <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg-secondary: #f5f5f3; --text-primary: #1a1a1a;
+      --text-secondary: #6b6b68; --text-tertiary: #aaaaaa;
+      --border: rgba(0,0,0,0.15); --border-strong: rgba(0,0,0,0.25);
+      --radius-md: 8px; --radius-lg: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a; --bg-secondary: #262624; --text-primary: #f0ede8;
+        --text-secondary: #9a9893; --text-tertiary: #5a5956;
+        --border: rgba(255,255,255,0.12); --border-strong: rgba(255,255,255,0.22);
+      }
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg-secondary); color: var(--text-primary); min-height: 100vh; padding: 2rem 1rem; }
+    .app { max-width: 760px; margin: 0 auto; background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 2.5rem 2rem; }
+    .dev-banner { background: #FCEFC7; color: #8A5A00; border: 0.5px solid #E8C56A; border-radius: var(--radius-md); padding: 8px 14px; font-size: 12px; font-weight: 500; letter-spacing: 0.5px; text-align: center; margin-bottom: 1.5rem; }
+    @media (prefers-color-scheme: dark) { .dev-banner { background: #3a2f12; color: #E8C56A; border-color: #6b5523; } }
+    .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2.5rem; }
+    .brand-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 500; letter-spacing: -0.5px; }
+    .brand-tag { font-size: 11px; color: var(--text-secondary); letter-spacing: 1.5px; text-transform: uppercase; }
+    .screen { display: none; } .screen.active { display: block; }
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 1rem; }
+    @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
+    .home-card { padding: 2rem 1.5rem; border: 0.5px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--bg); cursor: pointer; transition: all 0.15s; text-align: left; }
+    .home-card:hover { background: var(--bg-secondary); }
+    .home-card-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 16px; font-weight: 500; }
+    .icon-admin { background: #E1F5EE; color: #0F6E56; } .icon-prof { background: #EEEDFE; color: #534AB7; }
+    .home-card-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+    .home-card-sub { font-size: 13px; color: var(--text-secondary); }
+    .prof-list { display: grid; gap: 8px; margin-top: 1rem; }
+    .prof-item { padding: 14px 16px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); cursor: pointer; display: flex; align-items: center; gap: 14px; transition: all 0.15s; }
+    .prof-item:hover { background: var(--bg-secondary); }
+    .prof-avatar { width: 40px; height: 40px; border-radius: 50%; background: #EEEDFE; color: #3C3489; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .prof-item-name { font-size: 14px; font-weight: 500; } .prof-item-esp { font-size: 12px; color: var(--text-secondary); }
+    .main-nav { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .main-tab { padding: 10px 22px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text-secondary); cursor: pointer; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); transition: all 0.15s; }
+    .main-tab:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .main-tab.active { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 500; }
+    .main-section { display: none; } .main-section.active { display: block; }
+    .sub-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 2rem; overflow-x: auto; }
+    .sub-tab { padding: 9px 18px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text-secondary); cursor: pointer; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; background: none; transition: color 0.15s, border-color 0.15s; }
+    .sub-tab:hover { color: var(--text-primary); }
+    .sub-tab.active { color: var(--text-primary); font-weight: 500; border-bottom-color: var(--text-primary); }
+    .sub-section { display: none; } .sub-section.active { display: block; }
+    .panel-title { font-size: 18px; font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .panel-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .op-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+    .op-btn { padding: 10px 8px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .op-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+    .op-btn.alta.active { background: #0F6E56; border-color: #0F6E56; color: #E1F5EE; font-weight: 500; }
+    .op-btn.baja.active { background: #993C1D; border-color: #993C1D; color: #FAECE7; font-weight: 500; }
+    .op-btn.mod.active  { background: #185FA5; border-color: #185FA5; color: #E6F1FB; font-weight: 500; }
+    .baja-notice { display: none; padding: 12px 14px; border-radius: var(--radius-md); background: #FAECE7; border: 0.5px solid #F0997B; font-size: 13px; color: #993C1D; margin-bottom: 1.5rem; }
+    .baja-notice.show { display: block; }
+    .info-box { padding: 10px 14px; border-radius: var(--radius-md); background: var(--bg-secondary); border: 0.5px solid var(--border); font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+    .sec-lbl { font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 540px) { .grid2 { grid-template-columns: 1fr; } .app { padding: 1.5rem 1rem; } }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.3px; }
+    input, select, textarea { font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 9px 12px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-primary); width: 100%; transition: border-color 0.15s, box-shadow 0.15s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--text-secondary); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+    input::placeholder, textarea::placeholder { color: var(--text-tertiary); }
+    input.err, select.err { border-color: #E24B4A !important; }
+    input[readonly] { background: var(--bg-secondary); color: var(--text-secondary); cursor: default; }
+    textarea { resize: vertical; min-height: 180px; line-height: 1.6; }
+    .field-err { font-size: 11px; color: #A32D2D; margin-top: 2px; display: none; }
+    .field-err.show { display: block; }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
+    .submit-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem; }
+    .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-bottom: 1.5rem; transition: background 0.15s; }
+    .btn-back:hover { background: var(--bg-secondary); }
+    .btn-sec { padding: 9px 20px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .btn-sec:hover { background: var(--bg-secondary); }
+    .btn-pri { padding: 9px 24px; border: none; border-radius: var(--radius-md); background: var(--text-primary); color: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+    .btn-pri:hover { opacity: 0.82; }
+    .btn-pri.alta { background: #0F6E56; color: #E1F5EE; }
+    .btn-pri.baja { background: #993C1D; color: #FAECE7; }
+    .btn-pri.mod  { background: #185FA5; color: #E6F1FB; }
+    .btn-pri.purple { background: #534AB7; color: #EEEDFE; }
+    .ok-msg { display: none; align-items: center; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); background: #E1F5EE; border: 0.5px solid #5DCAA5; font-size: 13px; color: #0F6E56; margin-top: 1rem; }
+    .ok-msg.show { display: flex; }
+    .hidden { display: none !important; }
+    .count-badge { font-size: 12px; background: var(--bg-secondary); color: var(--text-secondary); padding: 3px 10px; border-radius: 99px; font-weight: 400; }
+    .search-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+    .search-bar input { flex: 1; }
+    .tbl-wrap { overflow-x: auto; border: 0.5px solid var(--border); border-radius: var(--radius-md); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    thead tr { background: var(--bg-secondary); }
+    th { padding: 10px 14px; text-align: left; font-weight: 500; font-size: 12px; color: var(--text-secondary); letter-spacing: 0.3px; border-bottom: 0.5px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 0.5px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-secondary); }
+    tbody tr.clickable { cursor: pointer; }
+    .empty-state { padding: 2.5rem; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+    .pill-p { background: #EEEDFE; color: #3C3489; }
+    .pill-b { background: #E6F1FB; color: #0C447C; }
+    .pill-c { background: #E1F5EE; color: #085041; }
+
+    /* VÍNCULOS EN ALTA PACIENTE */
+    .vinculo-card { border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 10px; background: var(--bg-secondary); position: relative; }
+    .vinculo-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .vinculo-card-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+    .btn-rm-vinculo { padding: 4px 10px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .btn-rm-vinculo:hover { background: #FAECE7; border-color: #F0997B; color: #993C1D; }
+    .btn-add-vinculo { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 0.5px dashed var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-top: 4px; transition: all 0.15s; }
+    .btn-add-vinculo:hover { background: var(--bg-secondary); color: var(--text-primary); border-style: solid; }
+    .vinculos-err { font-size: 11px; color: #A32D2D; margin-top: 4px; display: none; }
+    .vinculos-err.show { display: block; }
+    .horario-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .horario-row select { flex: 1; }
+    .btn-rm-horario { flex-shrink: 0; width: 32px; height: 38px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: 16px; cursor: pointer; line-height: 1; transition: all 0.15s; }
+    .btn-rm-horario:hover { background: #FAECE7; border-color: #F0997B; color: #993C1D; }
+
+    /* VÍNCULOS LIST en ABM Vínculos */
+    .vinculo-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 0.5px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; background: var(--bg); gap: 12px; }
+    .vinculo-row-info { flex: 1; min-width: 0; }
+    .vinculo-row-name { font-size: 14px; font-weight: 500; }
+    .vinculo-row-detail { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .vinculo-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-vinculo-action { padding: 6px 12px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .btn-vinculo-action:hover { background: var(--bg-secondary); }
+    .btn-vinculo-action.danger:hover { background: #FAECE7; border-color: #F0997B; color: #993C1D; }
+
+    /* SESIÓN */
+    .pac-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+    .pac-card-row { display: flex; flex-direction: column; gap: 2px; }
+    .pac-card-lbl { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .pac-card-val { font-size: 13px; font-weight: 500; }
+    .sesion-detail { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; }
+    .sesion-detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+    .sesion-obs { font-size: 14px; line-height: 1.7; white-space: pre-wrap; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); }
+
+    /* ASISTENCIA */
+    .asist-header { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .asist-header .fg { margin-bottom: 0; }
+    .asist-stat { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .asist-stat-box { flex: 1; min-width: 100px; padding: 12px 16px; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: var(--bg-secondary); }
+    .asist-stat-num { font-size: 22px; font-weight: 500; }
+    .asist-stat-lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .asist-ok { color: #0F6E56; font-weight: 500; } .asist-no { color: #993C1D; }
+
+    /* AUTH */
+    .auth-overlay { position: fixed; inset: 0; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .auth-overlay.hidden { display: none; }
+    .auth-box { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem 2rem; max-width: 360px; width: 90%; text-align: center; }
+    .auth-logo { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 500; margin-bottom: 6px; }
+    .auth-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 2rem; }
+    .auth-btn { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .auth-btn:hover { background: var(--bg-secondary); }
+    .auth-err { font-size: 12px; color: #A32D2D; margin-top: 1rem; display: none; }
+    .auth-err.show { display: block; }
+
+    /* SYNC */
+    .sync-bar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 1rem; font-size: 12px; color: var(--text-tertiary); }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-tertiary); }
+    .sync-dot.ok { background: #0F6E56; } .sync-dot.err { background: #E24B4A; }
+    .sync-dot.loading { background: #F0A429; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* FICHA DE DETALLE EN CONSULTAS */
+    .detail-panel { background: var(--bg); border: 0.5px solid var(--border-strong); border-radius: var(--radius-lg); padding: 1.5rem; margin-top: 1rem; }
+    /* HISTORIA DEL PACIENTE */
+    .hpac-sec { margin-top: 1.5rem; }
+    .hpac-sec-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+    .hpac-vinc { background: var(--bg-secondary); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 10px; }
+    .hpac-vinc-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .hpac-vinc-prof { font-weight: 500; font-size: 14px; }
+    .hpac-vinc-meta { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .hpac-file { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--bg-secondary); border: 0.5px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; }
+    .hpac-file a { color: #534AB7; text-decoration: none; font-size: 14px; font-weight: 500; }
+    .hpac-file a:hover { text-decoration: underline; }
+    .hpac-file-date { margin-left: auto; font-size: 12px; color: var(--text-secondary); }
+    .hpac-ses { border: 0.5px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; overflow: hidden; }
+    .hpac-ses-head { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; cursor: pointer; background: var(--bg-secondary); }
+    .hpac-ses-head:hover { background: var(--border); }
+    .hpac-ses-arrow { transition: transform 0.15s; color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+    .hpac-ses.open .hpac-ses-arrow { transform: rotate(90deg); }
+    .hpac-ses-fecha { font-weight: 500; font-size: 13px; white-space: nowrap; }
+    .hpac-ses-prof { font-size: 12px; color: var(--text-secondary); }
+    .hpac-ses-prev { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+    .hpac-ses.open .hpac-ses-prev { display: none; }
+    .hpac-ses-body { display: none; padding: 14px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; border-top: 0.5px solid var(--border); }
+    .hpac-ses.open .hpac-ses-body { display: block; }
+    .hpac-empty { font-size: 13px; color: var(--text-secondary); font-style: italic; }
+    .detail-panel-title { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin-bottom: 1.25rem; }
+    @media (max-width: 480px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-row { display: flex; flex-direction: column; gap: 2px; }
+    .detail-lbl { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .detail-val { font-size: 13px; font-weight: 500; }
+    .detail-actions { display: flex; gap: 8px; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+    .btn-danger { padding: 9px 20px; border: 0.5px solid #F0997B; border-radius: var(--radius-md); background: transparent; color: #993C1D; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .btn-danger:hover { background: #FAECE7; }
+
+    /* MODAL DE CONFIRMACIÓN */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 500; }
+    .modal-overlay.hidden { display: none; }
+    .modal-box { background: var(--bg); border: 0.5px solid var(--border-strong); border-radius: var(--radius-lg); padding: 2rem; max-width: 380px; width: 90%; }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+    .modal-body { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* ESTADO GUARDANDO EN BOTONES */
+    .btn-pri:disabled { opacity: 0.55; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">Volta</div>
+    <div class="auth-sub">Gestión del centro</div>
+    <button class="auth-btn" onclick="iniciarLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.17z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
+      Ingresar con Google
+    </button>
+    <div id="auth-err" class="auth-err">No se pudo iniciar sesión. Intentá de nuevo.</div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="brand">
+    <span class="brand-name">Volta</span>
+    <span class="brand-tag">Gestión</span>
+  </div>
+  <div class="sync-bar">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-txt">Conectando…</span>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div style="font-size:15px;color:var(--text-secondary);margin-bottom:1.5rem;">¿Cómo ingresás hoy?</div>
+    <div class="home-grid">
+      <div class="home-card" onclick="goAdmin()">
+        <div class="home-card-icon icon-admin">⚙</div>
+        <div class="home-card-title">Administrador</div>
+        <div class="home-card-sub">Gestión de prestadores, profesionales y pacientes</div>
+      </div>
+      <div class="home-card" onclick="goScreen('screen-proflist')">
+        <div class="home-card-icon icon-prof">◆</div>
+        <div class="home-card-title">Profesional</div>
+        <div class="home-card-sub">Registrar sesiones y consultar historia clínica</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLAVE ADMINISTRADOR -->
+  <div id="screen-admin-pass" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
+    <div class="panel-title" style="margin-bottom:4px;">Administrador</div>
+    <div class="panel-sub">Ingresá la clave para continuar.</div>
+    <div class="fg full" style="max-width:320px;margin-top:1rem;">
+      <label>Clave</label>
+      <input id="admin-pass-input" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkAdminPassword()" oninput="document.getElementById('admin-pass-err').classList.remove('show')">
+      <span class="field-err" id="admin-pass-err">Clave incorrecta.</span>
+    </div>
+    <div class="submit-row" style="max-width:320px;">
+      <button class="btn-pri alta" onclick="checkAdminPassword()">Ingresar</button>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="screen-admin" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
+    <div class="main-nav">
+      <button id="tab-abm" class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
+      <button id="tab-consultas" class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
+    </div>
+
+    <div id="main-abm" class="main-section active">
+      <div class="sub-nav">
+        <button class="sub-tab active" onclick="switchSub('abm','prestadores',this)">Prestadores</button>
+        <button class="sub-tab" onclick="switchSub('abm','profesionales',this)">Profesionales</button>
+        <button class="sub-tab" onclick="switchSub('abm','pacientes',this)">Pacientes</button>
+        <button class="sub-tab" onclick="switchSub('abm','vinculos',this)">Vínculos</button>
+        <button class="sub-tab" onclick="switchSub('abm','contratos',this)">Contratos</button>
+      </div>
+
+      <!-- ABM PRESTADORES -->
+      <div id="abm-prestadores" class="sub-section active">
+        <div class="panel-title">Prestadores de servicios</div>
+        <div class="panel-sub">Alta de nuevos prestadores. Para modificar o dar de baja, usá la sección Consultas.</div>
+        <div class="info-box">PARTICULAR y BPS son prestadores fijos del sistema y no pueden modificarse ni darse de baja.</div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador"></div>
+          <div class="fg full"><label>Dirección</label><input id="p-dir" type="text" placeholder="Calle, número, ciudad"></div>
+          <div class="fg"><label>Persona de contacto</label><input id="p-contacto" type="text" placeholder="Nombre completo"></div>
+          <div class="fg"><label>Teléfono</label><input id="p-tel" type="tel" placeholder="+598 99 000 000"></div>
+          <div class="fg full"><label>Mail de contacto</label><input id="p-mail" type="email" placeholder="contacto@prestador.com"></div>
+        </div>
+        <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-top:4px;">
+          <input id="p-tickets" type="checkbox" style="width:auto;">
+          <label for="p-tickets" style="margin:0;">Este prestador opera con tickets (rendición manual de comprobantes)</label>
+        </div>
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('prestadores')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-prestadores" onclick="submitF('prestadores')">Registrar alta</button>
+        </div>
+        <div id="prestadores-ok" class="ok-msg"><span>✓</span><span>Prestador registrado correctamente.</span></div>
+      </div>
+
+      <!-- ABM PROFESIONALES -->
+      <div id="abm-profesionales" class="sub-section">
+        <div class="panel-title">Profesionales</div>
+        <div class="panel-sub">Alta de nuevos profesionales. Para modificar o dar de baja, usá la sección Consultas.</div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido"></div>
+          <div class="fg"><label>Especialidad</label><input id="pr-esp" type="text" placeholder="Ej. Psicología clínica"></div>
+          <div class="fg"><label>Teléfono</label><input id="pr-tel" type="tel" placeholder="+598 99 000 000"></div>
+          <div class="fg full"><label>Mail</label><input id="pr-mail" type="email" placeholder="profesional@volta.com"></div>
+        </div>
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('profesionales')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-profesionales" onclick="submitF('profesionales')">Registrar alta</button>
+        </div>
+        <div id="profesionales-ok" class="ok-msg"><span>✓</span><span>Profesional registrado correctamente.</span></div>
+      </div>
+
+      <!-- ABM PACIENTES -->
+      <div id="abm-pacientes" class="sub-section">
+        <div class="panel-title">Pacientes</div>
+        <div class="panel-sub">Datos personales y del referente familiar. Para modificar o dar de baja, usá la sección Consultas.</div>
+        <div class="sec-lbl">Datos del paciente</div>
+        <div class="grid2">
+          <div class="fg full">
+            <label>Nombre del paciente</label>
+            <input id="pac-nombre" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pac-nombre')">
+            <span class="field-err" id="err-pac-nombre">Ingresá el nombre del paciente.</span>
+          </div>
+          <div class="fg">
+            <label>Número de cédula</label>
+            <input id="pac-ci" type="text" placeholder="Ej. 1.234.567-8" oninput="clearFErr('pac-ci')">
+            <span class="field-err" id="err-pac-ci">Ingresá el número de cédula.</span>
+          </div>
+          <div class="fg">
+            <label>Fecha de nacimiento</label>
+            <input id="pac-fecha-nac" type="date" oninput="clearFErr('pac-fecha-nac')">
+            <span class="field-err" id="err-pac-fecha-nac">Ingresá la fecha de nacimiento.</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="sec-lbl">Referente familiar</div>
+        <div class="grid2">
+          <div class="fg full">
+            <label>Nombre del padre, madre o tutor</label>
+            <input id="pac-tutor" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pac-tutor')">
+            <span class="field-err" id="err-pac-tutor">Ingresá el nombre del referente.</span>
+          </div>
+          <div class="fg">
+            <label>Teléfono del referente</label>
+            <input id="pac-tutor-tel" type="tel" placeholder="+598 99 000 000" oninput="clearFErr('pac-tutor-tel')">
+            <span class="field-err" id="err-pac-tutor-tel">Ingresá el teléfono del referente.</span>
+          </div>
+          <div class="fg">
+            <label>Mail del referente <span style="font-weight:400;color:var(--text-tertiary)">(opcional)</span></label>
+            <input id="pac-tutor-mail" type="email" placeholder="referente@mail.com" oninput="clearFErr('pac-tutor-mail')">
+            <span class="field-err" id="err-pac-tutor-mail">El mail no tiene un formato válido.</span>
+          </div>
+        </div>
+
+        <!-- VÍNCULOS (solo en alta) -->
+        <div id="pac-vinculos-section">
+          <hr class="divider">
+          <div class="sec-lbl">Profesionales asignados</div>
+          <div id="vinculos-alta-list"></div>
+          <span class="vinculos-err" id="err-vinculos">Agregá al menos un profesional asignado.</span>
+          <button class="btn-add-vinculo" type="button" onclick="agregarVinculoAlta()">+ Agregar profesional</button>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetF('pacientes')">Limpiar</button>
+          <button class="btn-pri alta" id="btn-pacientes" onclick="submitPaciente()">Registrar alta</button>
+        </div>
+        <div id="pacientes-ok" class="ok-msg"><span>✓</span><span id="pacientes-ok-txt">Paciente registrado correctamente.</span></div>
+      </div>
+
+      <!-- ABM VÍNCULOS -->
+      <div id="abm-vinculos" class="sub-section">
+        <div class="panel-title">Vínculos</div>
+        <div class="panel-sub">Alta de nuevos vínculos entre pacientes y profesionales. Para modificar o dar de baja, usá la sección Consultas.</div>
+
+        <!-- ALTA VÍNCULO -->
+        <div id="vinculo-form-alta">
+          <div class="fg" style="margin-bottom:1rem;">
+            <label>Paciente</label>
+            <select id="valt-paciente" onchange="clearFErr('valt-paciente')">
+              <option value="">— Seleccionar paciente —</option>
+            </select>
+            <span class="field-err" id="err-valt-paciente">Seleccioná un paciente.</span>
+          </div>
+          <div id="valt-form-body">
+            <div id="valt-vinculo-wrap"></div>
+          </div>
+          <div class="submit-row">
+            <button class="btn-sec" onclick="resetVinculoForm()">Limpiar</button>
+            <button class="btn-pri alta" onclick="submitVinculoAlta()">Registrar vínculo</button>
+          </div>
+
+        <div id="vinculos-alta-ok" class="ok-msg"><span>✓</span><span>Vínculo registrado correctamente.</span></div>
+        </div>
+      </div>
+
+      <!-- ABM CONTRATOS -->
+      <div id="abm-contratos" class="sub-section">
+        <div class="panel-title">Contratos</div>
+        <div class="panel-sub">Monto por sesión que paga cada prestador, según especialidad. No aplica a Particulares (el monto se define por vínculo).</div>
+        <div class="grid2">
+          <div class="fg">
+            <label>Prestador</label>
+            <select id="ctr-prestador" onchange="onCtrPrestChange();clearFErr('ctr-prestador')">
+              <option value="">— Seleccionar —</option>
+            </select>
+            <span class="field-err" id="err-ctr-prestador">Seleccioná un prestador.</span>
+          </div>
+          <div class="fg">
+            <label>Especialidad</label>
+            <input id="ctr-especialidad" type="text" placeholder="Ej. Psicología" oninput="clearFErr('ctr-especialidad')">
+            <span class="field-err" id="err-ctr-especialidad">Ingresá la especialidad.</span>
+          </div>
+          <div class="fg">
+            <label>Monto por sesión ($)</label>
+            <input id="ctr-monto" type="number" min="0" step="1" placeholder="Ej. 766" oninput="clearFErr('ctr-monto')">
+            <span class="field-err" id="err-ctr-monto">Ingresá el monto.</span>
+          </div>
+        </div>
+        <div class="submit-row">
+          <button class="btn-sec" onclick="resetCtrForm()">Limpiar</button>
+          <button class="btn-pri alta" id="btn-contratos" onclick="submitContrato()">Guardar contrato</button>
+        </div>
+        <div id="contratos-ok" class="ok-msg"><span>✓</span><span>Contrato guardado correctamente.</span></div>
+
+        <hr class="divider">
+        <div class="sec-lbl">Contratos cargados</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:34%">Prestador</th><th style="width:34%">Especialidad</th><th style="width:16%">Monto</th><th style="width:16%"></th></tr></thead>
+          <tbody id="tbody-ctr"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- CONSULTAS -->
+    <div id="main-consultas" class="main-section">
+      <div class="sub-nav">
+        <button class="sub-tab active" onclick="switchSub('consultas','prestadores',this)">Prestadores</button>
+        <button class="sub-tab" onclick="switchSub('consultas','profesionales',this)">Profesionales</button>
+        <button class="sub-tab" onclick="switchSub('consultas','pacientes',this)">Pacientes</button>
+        <button class="sub-tab" onclick="switchSub('consultas','asistencia',this);populateAsistPrestSelect();renderAsistencia('admin')">Asistencia</button>
+        <button class="sub-tab" onclick="switchSub('consultas','porprof',this);populatePorProfSelect()">Por profesional</button>
+        <button class="sub-tab" onclick="switchSub('consultas','hpaciente',this);populateHPacSelect()">H. Paciente</button>
+      </div>
+      <div id="consultas-prestadores" class="sub-section active">
+        <div class="panel-title">Prestadores <span class="count-badge" id="cnt-p">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('prestadores',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:20%">Nombre</th><th style="width:9%">Tipo</th><th style="width:9%">Tickets</th><th style="width:19%">Dirección</th><th style="width:14%">Contacto</th><th style="width:13%">Teléfono</th><th style="width:16%">Mail</th></tr></thead>
+          <tbody id="tbody-p"></tbody>
+        </table></div>
+        <div id="detail-prestador" class="detail-panel hidden"></div>
+      </div>
+      <div id="consultas-profesionales" class="sub-section">
+        <div class="panel-title">Profesionales <span class="count-badge" id="cnt-pr">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('profesionales',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:30%">Nombre</th><th style="width:28%">Especialidad</th><th style="width:16%">Teléfono</th><th style="width:26%">Mail</th></tr></thead>
+          <tbody id="tbody-pr"></tbody>
+        </table></div>
+        <div id="detail-profesional" class="detail-panel hidden"></div>
+      </div>
+      <div id="consultas-pacientes" class="sub-section">
+        <div class="panel-title">Pacientes / Vínculos <span class="count-badge" id="cnt-pac">0</span></div>
+        <div class="search-bar"><input type="text" placeholder="Buscar..." oninput="renderQ('pacientes',this.value)"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:20%">Paciente</th><th style="width:12%">Cédula</th><th style="width:16%">Prestador</th><th style="width:20%">Profesional</th><th style="width:20%">Día y horario</th><th style="width:12%">Inicio</th></tr></thead>
+          <tbody id="tbody-pac"></tbody>
+        </table></div>
+        <div id="detail-paciente" class="detail-panel hidden"></div>
+      </div>
+      <div id="consultas-asistencia" class="sub-section">
+        <div class="panel-title">Reporte de asistencia</div>
+        <div class="panel-sub">Vínculos programados para una fecha determinada</div>
+        <div class="asist-header">
+          <div class="fg"><label>Fecha</label><input type="date" id="admin-asist-fecha" oninput="renderAsistencia('admin')"></div>
+          <div class="fg"><label>Prestador</label>
+            <select id="admin-asist-prest" onchange="renderAsistencia('admin')"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="asist-stat" id="admin-asist-stat"></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th style="width:20%">Paciente</th><th style="width:12%">Cédula</th><th style="width:14%">Prestador</th><th style="width:20%">Profesional</th><th style="width:10%">Día</th><th style="width:10%">Hora</th><th style="width:14%">Asistencia</th></tr></thead>
+          <tbody id="tbody-asist-admin"></tbody>
+        </table></div>
+      </div>
+      <div id="consultas-porprof" class="sub-section">
+        <div class="panel-title">Pacientes por profesional</div>
+        <div class="panel-sub">Seleccioná un profesional para ver sus pacientes y reasignarlos</div>
+        <div class="asist-header">
+          <div class="fg"><label>Profesional</label>
+            <select id="porprof-sel" onchange="renderPorProf()"><option value="">— Seleccionar —</option></select>
+          </div>
+        </div>
+        <div id="porprof-result"></div>
+      </div>
+      <div id="consultas-hpaciente" class="sub-section">
+        <div class="panel-title">Historia del paciente</div>
+        <div class="panel-sub">Seleccioná un paciente para ver su ficha completa: datos, vínculos, archivos y sesiones</div>
+        <div class="asist-header">
+          <div class="fg"><label>Paciente</label>
+            <select id="hpac-sel" onchange="renderHPaciente()"><option value="">— Seleccionar —</option></select>
+          </div>
+        </div>
+        <div id="hpac-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REASIGNAR VÍNCULO -->
+  <div id="screen-reasignar" class="screen">
+    <button class="btn-back" onclick="cancelarReasignacion()">← Volver</button>
+    <div class="panel-title">Reasignar paciente</div>
+    <div class="panel-sub" id="reasig-sub"></div>
+    <div class="info-box" id="reasig-info" style="margin-bottom:1.25rem;"></div>
+    <div class="fg full" style="margin-bottom:1rem;">
+      <label>Nuevo profesional</label>
+      <select id="reasig-prof"><option value="">— Seleccionar —</option></select>
+      <span class="field-err" id="err-reasig-prof">Seleccioná el profesional destino.</span>
+    </div>
+    <div class="sec-lbl" style="margin-bottom:10px;">Horarios con el nuevo profesional</div>
+    <div class="panel-sub" style="margin-top:0;margin-bottom:10px;">Se sugieren los horarios actuales. Editalos según la agenda del nuevo profesional.</div>
+    <div id="reasig-horarios"></div>
+    <button class="btn-add-vinculo" type="button" id="reasig-add-horario" style="margin-top:2px;">+ Agregar horario</button>
+    <span class="field-err" id="err-reasig-dia">Agregá al menos un horario con día seleccionado.</span>
+    <div class="submit-row">
+      <button class="btn-sec" onclick="cancelarReasignacion()">Cancelar</button>
+      <button class="btn-pri alta" id="btn-reasig" onclick="confirmarReasignacion()">Confirmar reasignación</button>
+    </div>
+    <div id="reasig-ok" class="ok-msg"><span>✓</span><span>Paciente reasignado correctamente.</span></div>
+  </div>
+  <div id="screen-proflist" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
+    <div class="panel-title" style="margin-bottom:4px;">Profesionales</div>
+    <div class="panel-sub">Seleccioná tu nombre para continuar</div>
+    <div class="prof-list" id="prof-list"></div>
+  </div>
+
+  <!-- MENÚ PROFESIONAL -->
+  <div id="screen-profmenu" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-proflist')">← Profesionales</button>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:2rem;">
+      <div class="prof-avatar" id="pm-avatar" style="width:44px;height:44px;font-size:14px;"></div>
+      <div>
+        <div style="font-size:17px;font-weight:500;" id="pm-nombre"></div>
+        <div style="font-size:13px;color:var(--text-secondary);" id="pm-esp"></div>
+      </div>
+    </div>
+    <div class="home-grid">
+      <div class="home-card" onclick="goSesion()">
+        <div class="home-card-icon" style="background:#E1F5EE;color:#0F6E56;font-size:20px;">+</div>
+        <div class="home-card-title">Nueva sesión</div>
+        <div class="home-card-sub">Registrar una sesión con un paciente</div>
+      </div>
+      <div class="home-card" onclick="goHistoria()">
+        <div class="home-card-icon" style="background:#E6F1FB;color:#185FA5;font-size:18px;">≡</div>
+        <div class="home-card-title">Historia</div>
+        <div class="home-card-sub">Ver el historial clínico de un paciente</div>
+      </div>
+      <div class="home-card" onclick="goAsistenciaProf()">
+        <div class="home-card-icon" style="background:#E1F5EE;color:#0F6E56;font-size:18px;">✓</div>
+        <div class="home-card-title">Asistencia</div>
+        <div class="home-card-sub">Reporte de asistencia diaria de mis pacientes</div>
+      </div>
+      <div class="home-card" onclick="goDocumentos()">
+        <div class="home-card-icon" style="background:#EEEDFE;color:#534AB7;font-size:18px;">⎙</div>
+        <div class="home-card-title">Mis documentos</div>
+        <div class="home-card-sub">Subir título y certificados (PDF)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENTOS DEL PROFESIONAL -->
+  <div id="screen-documentos" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Menú profesional</button>
+    <div class="panel-title">Mis documentos</div>
+    <div class="panel-sub" id="doc-prof-sub"></div>
+    <div class="grid2" style="margin-bottom:0.5rem;">
+      <div class="fg full"><label>Nombre del documento</label><input id="doc-nombre" type="text" placeholder="Ej. Título, Certificado de habilitación…"></div>
+      <div class="fg full"><label>Archivo (PDF u otro)</label><input id="doc-file" type="file" accept=".pdf,application/pdf,image/*"></div>
+    </div>
+    <span class="field-err" id="err-doc-nombre">Ingresá un nombre para el documento.</span>
+    <span class="field-err" id="err-doc-file">Seleccioná un archivo para subir.</span>
+    <div class="submit-row">
+      <button class="btn-sec" onclick="resetDocForm()">Limpiar</button>
+      <button class="btn-pri purple" id="btn-doc-subir" onclick="subirDocumento()">Subir documento</button>
+    </div>
+    <div id="doc-ok" class="ok-msg"><span>✓</span><span>Documento subido correctamente.</span></div>
+    <div id="doc-err" class="baja-notice" style="margin-top:1rem;"></div>
+    <hr class="divider">
+    <div class="sec-lbl" style="margin-bottom:12px;">Documentos subidos</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:45%">Nombre</th><th style="width:30%">Fecha</th><th style="width:25%">Archivo</th></tr></thead>
+      <tbody id="tbody-docs-prof"></tbody>
+    </table></div>
+  </div>
+
+  <!-- SESIÓN -->
+  <div id="screen-sesion" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Menú profesional</button>
+    <div class="panel-title">Nueva sesión</div>
+    <div class="panel-sub" id="ses-prof-sub"></div>
+    <div class="fg" style="margin-bottom:1.5rem;">
+      <label>Paciente</label>
+      <select id="ses-paciente" onchange="onSesionPacienteChange()">
+        <option value="">— Seleccionar paciente —</option>
+      </select>
+      <span class="field-err" id="err-ses-paciente">Seleccioná un paciente.</span>
+    </div>
+    <div id="ses-pac-card" class="hidden">
+      <div class="pac-card" id="ses-pac-card-inner"></div>
+      <div class="fg" style="margin-bottom:1.5rem;"><label>Fecha</label><input id="ses-fecha" type="date"></div>
+      <div class="fg">
+        <label>Observaciones</label>
+        <textarea id="ses-obs" placeholder="Escribí aquí los comentarios y observaciones de la sesión..." style="min-height:220px;" oninput="clearFErr('ses-obs')"></textarea>
+        <span class="field-err" id="err-ses-obs">Ingresá al menos una observación antes de guardar.</span>
+      </div>
+      <div class="submit-row">
+        <button class="btn-sec" onclick="resetSesion()">Limpiar</button>
+        <button class="btn-pri purple" onclick="guardarSesion()">Guardar sesión</button>
+      </div>
+      <div id="ses-ok" class="ok-msg"><span>✓</span><span>Sesión registrada correctamente.</span></div>
+    </div>
+  </div>
+
+  <!-- HISTORIA -->
+  <div id="screen-historia" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Menú profesional</button>
+    <div class="panel-title">Historia clínica</div>
+    <div class="panel-sub" id="hist-prof-sub"></div>
+    <div class="fg" style="margin-bottom:1.5rem;">
+      <label>Paciente</label>
+      <select id="hist-paciente" onchange="onHistoriaPacienteChange()">
+        <option value="">— Seleccionar paciente —</option>
+      </select>
+    </div>
+    <div id="hist-lista" class="hidden">
+      <div class="sec-lbl" style="margin-bottom:12px;">Sesiones registradas</div>
+      <div class="tbl-wrap" style="margin-bottom:1.5rem;">
+        <table>
+          <thead><tr><th style="width:28%">Fecha</th><th style="width:18%">Hora</th><th style="width:54%">Observaciones (vista previa)</th></tr></thead>
+          <tbody id="tbody-sesiones"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="hist-detalle" class="hidden">
+      <button class="btn-back" onclick="document.getElementById('hist-detalle').classList.add('hidden');document.getElementById('hist-lista').classList.remove('hidden');">← Lista de sesiones</button>
+      <div class="sesion-detail">
+        <div class="sesion-detail-header">
+          <div>
+            <div style="font-size:15px;font-weight:500;" id="det-paciente"></div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;" id="det-fecha-hora"></div>
+          </div>
+          <span class="pill pill-p" id="det-prof-badge"></span>
+        </div>
+        <div class="sec-lbl" style="margin-bottom:8px;">Observaciones</div>
+        <div class="sesion-obs" id="det-obs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASISTENCIA PROFESIONAL -->
+  <div id="screen-asistencia" class="screen">
+    <button class="btn-back" onclick="goScreen('screen-profmenu')">← Menú profesional</button>
+    <div class="panel-title">Reporte de asistencia</div>
+    <div class="panel-sub" id="asist-prof-sub"></div>
+    <div class="asist-header">
+      <div class="fg"><label>Fecha</label><input type="date" id="prof-asist-fecha" oninput="renderAsistencia('prof')"></div>
+    </div>
+    <div class="asist-stat" id="prof-asist-stat"></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:26%">Paciente</th><th style="width:14%">Cédula</th><th style="width:16%">Prestador</th><th style="width:14%">Día</th><th style="width:12%">Hora</th><th style="width:18%">Asistencia</th></tr></thead>
+      <tbody id="tbody-asist-prof"></tbody>
+    </table></div>
+  </div>
+
+  <!-- PANTALLA DE EDICIÓN (desde Consultas) -->
+  <div id="screen-edit" class="screen">
+    <button class="btn-back" id="edit-back-btn" onclick="volverDeEdicion()">← Consultas</button>
+    <div class="panel-title" id="edit-title">Editar</div>
+    <div class="panel-sub" id="edit-sub"></div>
+    <div id="edit-form-body"></div>
+    <div class="submit-row" id="edit-submit-row">
+      <button class="btn-sec" onclick="volverDeEdicion()">Cancelar</button>
+      <button class="btn-pri mod" id="edit-save-btn" onclick="guardarEdicion()">Guardar cambios</button>
+    </div>
+    <div id="edit-ok" class="ok-msg"><span>✓</span><span id="edit-ok-txt">Cambios guardados correctamente.</span></div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN BAJA -->
+<div id="modal-baja" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-baja-title">Confirmar baja</div>
+    <div class="modal-body" id="modal-baja-body"></div>
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-danger" id="modal-baja-confirm">Confirmar baja</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────────
+  const CLIENT_ID = '52678653810-dlk885elq27jkr93ikt0en5fnhm3o872.apps.googleusercontent.com';
+  const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
+  const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+  const DISCOVERY = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+  const DISCOVERY_DRIVE = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+  const ROOT_FOLDER_NAME = 'VoltaProfesionales';
+  const ROOT_FOLDER_PACIENTES = 'VoltaPacientes';
+  let rootFolderId = null;  // id de la carpeta raíz VoltaProfesionales (se resuelve al cargar)
+  let rootFolderPacientesId = null;  // id de la carpeta raíz VoltaPacientes
+
+  // ─── DB ───────────────────────────────────────────────────────
+  // Pacientes: { nombre, ci, tutor, tutorTel, tutorMail }
+  // Vinculos:  { paciente, profesional, prestador, tipo, fechaInicio, dia, hora,
+  //              sesiones?, fechaOrigen?, fechaFin?, periodicidad? }
+  const db = { prestadores: [], profesionales: [], pacientes: [], vinculos: [], sesiones: [], documentos: [], docsPacientes: [], contratos: [] };
+
+  let tokenClient = null, gapiReady = false, gisReady = false, accessToken = null;
+  let profesionalActivo = null;
+
+  // ─── GOOGLE AUTH ──────────────────────────────────────────────
+  function gapiLoaded() {
+    gapi.load('client', async () => {
+      await gapi.client.init({ discoveryDocs: [DISCOVERY, DISCOVERY_DRIVE] });
+      gapiReady = true; maybeReady();
+    });
+  }
+  function gisLoaded() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID, scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) { showAuthErr(); return; }
+        accessToken = resp.access_token;
+        document.getElementById('auth-overlay').classList.add('hidden');
+        setSyncLoading('Cargando datos…');
+        await cargarTodo(); setSyncOk();
+      }
+    });
+    gisReady = true; maybeReady();
+  }
+  function maybeReady() {
+    if (!gapiReady || !gisReady) return;
+    const saved = sessionStorage.getItem('volta_token');
+    if (saved) {
+      gapi.client.setToken({ access_token: saved });
+      accessToken = saved;
+      document.getElementById('auth-overlay').classList.add('hidden');
+      setSyncLoading('Cargando datos…');
+      cargarTodo().then(setSyncOk).catch(() => {
+        sessionStorage.removeItem('volta_token');
+        document.getElementById('auth-overlay').classList.remove('hidden');
+      });
+    }
+  }
+  function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
+  function showAuthErr() { document.getElementById('auth-err').classList.add('show'); }
+
+  // ─── SYNC UI ──────────────────────────────────────────────────
+  function setSyncLoading(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot loading'; t.textContent=msg||'Sincronizando…'; }
+  function setSyncOk() { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot ok'; t.textContent='Sincronizado '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); if(accessToken) sessionStorage.setItem('volta_token',accessToken); }
+  function setSyncErr(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot err'; t.textContent=msg||'Error al sincronizar'; }
+
+  // ─── SHEETS HELPERS ───────────────────────────────────────────
+  async function sheetGet(range) { const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:SHEET_ID,range}); return r.result.values||[]; }
+  async function sheetAppend(sheet,values) { await gapi.client.sheets.spreadsheets.values.append({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:[values]}}); }
+  async function sheetClear(sheet) { await gapi.client.sheets.spreadsheets.values.clear({spreadsheetId:SHEET_ID,range:sheet+'!A1:Z10000'}); }
+  async function sheetWrite(sheet,rows) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',resource:{values:rows}}); }
+
+  // ─── DRIVE HELPERS ────────────────────────────────────────────
+  // Busca una carpeta por nombre dentro de un padre; la crea si no existe. Devuelve su id.
+  async function driveGetOrCreateFolder(nombre, parentId) {
+    const safe = nombre.replace(/'/g,"\\'");
+    let q = `mimeType='application/vnd.google-apps.folder' and name='${safe}' and trashed=false`;
+    if (parentId) q += ` and '${parentId}' in parents`;
+    const res = await gapi.client.drive.files.list({ q, fields:'files(id,name)', spaces:'drive' });
+    if (res.result.files && res.result.files.length) return res.result.files[0].id;
+    const meta = { name: nombre, mimeType:'application/vnd.google-apps.folder' };
+    if (parentId) meta.parents = [parentId];
+    const created = await gapi.client.drive.files.create({ resource: meta, fields:'id' });
+    return created.result.id;
+  }
+  // Asegura que exista la carpeta raíz VoltaProfesionales y cachea su id.
+  async function ensureRootFolder() {
+    if (rootFolderId) return rootFolderId;
+    rootFolderId = await driveGetOrCreateFolder(ROOT_FOLDER_NAME, null);
+    return rootFolderId;
+  }
+  // Convierte un nombre de profesional a nombre de carpeta (sin espacios): "Graciela Berriel" -> "GracielaBerriel"
+  function carpetaNombre(nombreProf) {
+    return nombreProf.split(' ').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('');
+  }
+  // Crea (o ubica) la carpeta de un profesional dentro de la raíz. Devuelve su id.
+  async function driveCarpetaProfesional(nombreProf) {
+    const root = await ensureRootFolder();
+    return await driveGetOrCreateFolder(carpetaNombre(nombreProf), root);
+  }
+  // Asegura la carpeta raíz VoltaPacientes y cachea su id.
+  async function ensureRootFolderPacientes() {
+    if (rootFolderPacientesId) return rootFolderPacientesId;
+    rootFolderPacientesId = await driveGetOrCreateFolder(ROOT_FOLDER_PACIENTES, null);
+    return rootFolderPacientesId;
+  }
+  // Crea (o ubica) la carpeta de un paciente dentro de VoltaPacientes. Devuelve su id.
+  async function driveCarpetaPaciente(nombrePac) {
+    const root = await ensureRootFolderPacientes();
+    return await driveGetOrCreateFolder(carpetaNombre(nombrePac), root);
+  }
+  // Sube un File del navegador a la carpeta indicada. Devuelve {id, webViewLink, name}.
+  async function driveSubirArchivo(file, folderId) {
+    const metadata = { name: file.name, parents: [folderId] };
+    const boundary = '-------volta'+Date.now();
+    const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${file.type||'application/octet-stream'}\r\n\r\n`;
+    const tail = `\r\n--${boundary}--`;
+    const buf = await file.arrayBuffer();
+    const body = new Blob([head, buf, tail], { type:'multipart/related; boundary='+boundary });
+    const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+      method:'POST',
+      headers:{ Authorization:'Bearer '+accessToken },
+      body
+    });
+    if (!resp.ok) throw new Error('Drive upload '+resp.status);
+    return await resp.json();
+  }
+
+  // ─── CARGA INICIAL ────────────────────────────────────────────
+  async function cargarTodo() {
+    const [pRows,prRows,pacRows,vRows,sesRows,docRows,docPacRows,ctrRows] = await Promise.all([
+      sheetGet('Prestadores!A2:F'), sheetGet('Profesionales!A2:D'),
+      sheetGet('Pacientes!A2:F'), sheetGet('Vinculos!A2:N'),
+      sheetGet('Sesiones!A2:E'), sheetGet('Documentos!A2:E'),
+      sheetGet('DocumentosPacientes!A2:E'), sheetGet('Contratos!A2:C')
+    ]);
+    db.prestadores = [
+      { nombre:'PARTICULAR', tipo:'fijo' },
+      { nombre:'BPS', tipo:'fijo' }
+    ];
+    pRows.forEach(r => { if(r[0]) db.prestadores.push({nombre:r[0],tipo:'comun',dir:r[1]||'',contacto:r[2]||'',tel:r[3]||'',mail:r[4]||'',tickets:(r[5]||'').trim().toLowerCase()==='si'||(r[5]||'').trim().toLowerCase()==='sí'}); });
+
+    db.profesionales = prRows.filter(r=>r[0]).map(r=>({nombre:r[0],esp:r[1]||'',tel:r[2]||'',mail:r[3]||''}));
+
+    db.pacientes = pacRows.filter(r=>r[0]).map(r=>({nombre:r[0],ci:r[1]||'',tutor:r[2]||'',tutorTel:r[3]||'',tutorMail:r[4]||'',fechaNac:r[5]||''}));
+
+    // Vinculos cols: paciente, profesional, prestador, tipo, fechaInicio, dia, hora, sesiones, fechaOrigen, fechaFin, periodicidad, estado, fechaCierre, monto
+    db.vinculos = vRows.filter(r=>r[0]).map(r=>{
+      const v={
+        paciente:r[0], profesional:r[1]||'', prestador:r[2]||'', tipo:r[3]||'comun',
+        fechaInicio:r[4]||'', dia:r[5]||'', hora:r[6]||'',
+        sesiones:r[7]||'', fechaOrigen:r[8]||'', fechaFin:r[9]||'', periodicidad:r[10]||'',
+        estado:(r[11]||'').trim().toLowerCase()==='cerrado'?'cerrado':'activo', fechaCierre:r[12]||'',
+        monto:r[13]||''
+      };
+      v.horarios = parseHorarios(v.dia, v.hora);
+      return v;
+    });
+
+    // Contratos cols: Prestador, Especialidad, Monto
+    db.contratos = ctrRows.filter(r=>r[0]).map(r=>({prestador:r[0],especialidad:r[1]||'',monto:r[2]||''}));
+
+    db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',hora:r[3]||'',obs:r[4]||''}));
+
+    // Documentos cols: Profesional, Nombre, Link, FileId, Fecha
+    db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+
+    // DocumentosPacientes cols: Paciente, Nombre, Link, FileId, Fecha
+    db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+
+    populateAllSelects();
+    renderProfList();
+    updateCounts();
+    ['prestadores','profesionales','pacientes'].forEach(k=>renderQ(k,''));
+  }
+
+  // ─── GUARDAR SHEETS ───────────────────────────────────────────
+  async function guardarPrestadores() {
+    const header=[['Nombre','Dirección','Contacto','Teléfono','Mail','Tickets']];
+    const rows=db.prestadores.filter(p=>p.tipo==='comun').map(p=>[p.nombre,p.dir,p.contacto,p.tel,p.mail,p.tickets?'Si':'No']);
+    await sheetClear('Prestadores'); await sheetWrite('Prestadores',[...header,...rows]);
+  }
+  async function guardarContratos() {
+    const header=[['Prestador','Especialidad','Monto']];
+    const rows=db.contratos.map(c=>[c.prestador,c.especialidad,c.monto]);
+    await sheetClear('Contratos'); await sheetWrite('Contratos',[...header,...rows]);
+  }
+  async function guardarProfesionales() {
+    const header=[['Nombre','Especialidad','Teléfono','Mail']];
+    const rows=db.profesionales.map(p=>[p.nombre,p.esp,p.tel,p.mail]);
+    await sheetClear('Profesionales'); await sheetWrite('Profesionales',[...header,...rows]);
+  }
+  async function guardarPacientes() {
+    const header=[['Nombre','CI','Tutor','TutorTel','TutorMail','FechaNacimiento']];
+    const rows=db.pacientes.map(p=>[p.nombre,p.ci,p.tutor,p.tutorTel,p.tutorMail,p.fechaNac||'']);
+    await sheetClear('Pacientes'); await sheetWrite('Pacientes',[...header,...rows]);
+  }
+  async function guardarVinculos() {
+    const header=[['Paciente','Profesional','Prestador','Tipo','FechaInicio','Dia','Hora','Sesiones','FechaOrigen','FechaFin','Periodicidad','Estado','FechaCierre','Monto']];
+    const rows=db.vinculos.map(v=>[v.paciente,v.profesional,v.prestador,v.tipo,v.fechaInicio,v.dia,v.hora,v.sesiones||'',v.fechaOrigen||'',v.fechaFin||'',v.periodicidad||'',v.estado||'activo',v.fechaCierre||'',v.monto||'']);
+    await sheetClear('Vinculos'); await sheetWrite('Vinculos',[...header,...rows]);
+  }
+  // ─── ABM CONTRATOS ────────────────────────────────────────────
+  function populateCtrPrestSelect() {
+    const sel = document.getElementById('ctr-prestador');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    db.prestadores.filter(p=>p.nombre!=='PARTICULAR').forEach(p=>{
+      const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+    onCtrPrestChange();
+  }
+  function onCtrPrestChange() {
+    const val = document.getElementById('ctr-prestador').value;
+    const esp = document.getElementById('ctr-especialidad');
+    if (val==='BPS') { esp.value='TODAS'; esp.disabled=true; }
+    else { esp.disabled=false; if (esp.value==='TODAS') esp.value=''; }
+  }
+  function resetCtrForm() {
+    document.getElementById('ctr-prestador').value='';
+    document.getElementById('ctr-especialidad').value=''; document.getElementById('ctr-especialidad').disabled=false;
+    document.getElementById('ctr-monto').value='';
+    ['ctr-prestador','ctr-especialidad','ctr-monto'].forEach(clearFErr);
+    document.getElementById('contratos-ok').classList.remove('show');
+  }
+  async function submitContrato() {
+    let ok = true;
+    const req=(id,msg)=>{ if(!getVal(id)){showFErr(id,msg);ok=false;}else clearFErr(id); };
+    req('ctr-prestador','Seleccioná un prestador.');
+    req('ctr-especialidad','Ingresá la especialidad.');
+    req('ctr-monto','Ingresá el monto.');
+    if (!ok) return;
+    const prestador=getVal('ctr-prestador'), especialidad=getVal('ctr-especialidad'), monto=getVal('ctr-monto');
+    const existente = db.contratos.find(c=>c.prestador===prestador && c.especialidad.toLowerCase()===especialidad.toLowerCase());
+    if (existente) existente.monto = monto;
+    else db.contratos.push({prestador,especialidad,monto});
+    document.getElementById('contratos-ok').classList.add('show');
+    renderContratosTable();
+    const btn=document.getElementById('btn-contratos');
+    btn.disabled=true; btn.textContent='Guardando…';
+    setSyncLoading('Guardando…');
+    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    btn.disabled=false; btn.textContent='Guardar contrato';
+    setTimeout(()=>resetCtrForm(), 1000);
+  }
+  function renderContratosTable() {
+    const tbody = document.getElementById('tbody-ctr');
+    if (!tbody) return;
+    tbody.innerHTML = db.contratos.length
+      ? db.contratos.map((c,idx)=>`<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td><td><button class="btn-sec" style="padding:5px 10px;font-size:12px;" onclick="eliminarContrato(${idx})">Quitar</button></td></tr>`).join('')
+      : `<tr><td colspan="4" class="empty-state">Sin contratos cargados</td></tr>`;
+  }
+  async function eliminarContrato(idx) {
+    db.contratos.splice(idx,1);
+    renderContratosTable();
+    setSyncLoading('Guardando…');
+    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+  }
+
+  async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,ses.hora,ses.obs]); }
+  async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos',[doc.profesional,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
+  async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes',[doc.paciente,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
+
+  // ─── SELECTS GLOBALES ─────────────────────────────────────────
+  function populateAllSelects() {
+    populatePrestadorSelects();
+    populateProfesionalSelect();
+    populatePacienteSelects();
+    populateAsistPrestSelect();
+  }
+  function populatePrestadorSelects() {
+    // Refrescar todos los selects de prestador en formularios de vínculo
+    document.querySelectorAll('.sel-prest').forEach(sel => {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Seleccionar prestador —</option>';
+      db.prestadores.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+      });
+      if (cur) sel.value = cur;
+    });
+  }
+  function populateProfesionalSelect() {
+    document.querySelectorAll('.sel-prof').forEach(sel => {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— Seleccionar profesional —</option>';
+      db.profesionales.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.nombre; o.textContent = p.nombre + (p.esp ? ' ('+p.esp+')' : ''); sel.appendChild(o);
+      });
+      if (cur) sel.value = cur;
+    });
+  }
+  function populatePacienteSelects() {
+    ['valt-paciente'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— Seleccionar paciente —</option>';
+      db.pacientes.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
+      });
+    });
+  }
+
+  // ─── HORARIOS ─────────────────────────────────────────────────
+  function horariosOpts() {
+    let opts = '<option value="">— Seleccionar —</option>';
+    for (let h=7;h<=21;h++) ['00','15','30','45'].forEach(m=>{opts+=`<option value="${String(h).padStart(2,'0')}:${m}">${String(h).padStart(2,'0')}:${m}</option>`;});
+    return opts;
+  }
+
+  // ─── HORARIOS MÚLTIPLES ───────────────────────────────────────
+  // Las celdas Dia/Hora guardan listas paralelas separadas por ';'
+  // Ej: dia="Lunes; Miércoles"  hora="14:00; 16:30"  => 2 encuentros.
+  // Datos viejos (un solo valor sin ';') se parsean a un único horario.
+  function parseHorarios(diaStr, horaStr) {
+    const dias=(diaStr||'').split(';').map(s=>s.trim());
+    const horas=(horaStr||'').split(';').map(s=>s.trim());
+    const n=Math.max(dias.length,horas.length);
+    const out=[];
+    for (let i=0;i<n;i++){
+      const d=dias[i]||'', h=horas[i]||'';
+      if (d||h) out.push({dia:d,hora:h});
+    }
+    return out;
+  }
+  function serializeHorarios(horarios) {
+    const list=(horarios||[]).filter(x=>x.dia||x.hora);
+    return { dia: list.map(x=>x.dia).join('; '), hora: list.map(x=>x.hora).join('; ') };
+  }
+  // Texto legible: "Lunes 14:00 · Miércoles 16:30"
+  function fmtHorarios(v) {
+    const list=v.horarios&&v.horarios.length?v.horarios:parseHorarios(v.dia,v.hora);
+    if (!list.length) return '—';
+    return list.map(x=>`${x.dia||''}${x.dia&&x.hora?' ':''}${x.hora||''}`.trim()).join(' · ');
+  }
+  // Agrega una fila día+hora dentro del contenedor del vínculo identificado por prefix
+  function addHorarioRow(prefix, dia, hora) {
+    const cont=document.getElementById(prefix+'-horarios');
+    if (!cont) return;
+    const row=document.createElement('div');
+    row.className='horario-row';
+    row.innerHTML=`
+      <select class="hr-dia" onchange="clearFErr('${prefix}-dia')">
+        <option value="">— Día —</option>
+        <option>Lunes</option><option>Martes</option><option>Miércoles</option>
+        <option>Jueves</option><option>Viernes</option><option>Sábado</option>
+      </select>
+      <select class="hr-hora">${horariosOpts()}</select>
+      <button type="button" class="btn-rm-horario" title="Quitar horario">×</button>`;
+    if (dia) row.querySelector('.hr-dia').value=dia;
+    if (hora) row.querySelector('.hr-hora').value=hora;
+    row.querySelector('.btn-rm-horario').addEventListener('click',()=>{
+      const rows=cont.querySelectorAll('.horario-row');
+      if (rows.length>1) row.remove();
+      else { row.querySelector('.hr-dia').value=''; row.querySelector('.hr-hora').value=''; }
+    });
+    cont.appendChild(row);
+  }
+  // Lee los horarios cargados en el form del vínculo
+  function readHorarios(prefix) {
+    const cont=document.getElementById(prefix+'-horarios');
+    if (!cont) return [];
+    return [...cont.querySelectorAll('.horario-row')].map(r=>({
+      dia:r.querySelector('.hr-dia').value, hora:r.querySelector('.hr-hora').value
+    })).filter(x=>x.dia||x.hora);
+  }
+
+  // ─── VÍNCULO FORM BUILDER ─────────────────────────────────────
+  // Builds the inner form fields for a single vínculo
+  // prefix: unique id prefix (e.g. 'va0', 'va1', 'vbm')
+  // data: optional object to pre-fill values
+  // removable: show remove button
+  function buildVinculoFields(prefix, data, removable, removeCallback) {
+    const d = data || {};
+    const tipo = d.tipo || '';
+    const div = document.createElement('div');
+    div.id = 'vc-' + prefix;
+    div.className = 'vinculo-card';
+    div.innerHTML = `
+      ${removable ? `<div class="vinculo-card-header"><span class="vinculo-card-title">Profesional asignado</span><button class="btn-rm-vinculo" type="button">Quitar</button></div>` : ''}
+      <div class="grid2">
+        <div class="fg">
+          <label>Profesional</label>
+          <select id="${prefix}-prof" class="sel-prof" onchange="clearFErr('${prefix}-prof')">
+            <option value="">— Seleccionar —</option>
+          </select>
+          <span class="field-err" id="err-${prefix}-prof">Seleccioná un profesional.</span>
+        </div>
+        <div class="fg">
+          <label>Prestador</label>
+          <select id="${prefix}-prest" class="sel-prest" onchange="onVinculoPrestChange('${prefix}');clearFErr('${prefix}-prest')">
+            <option value="">— Seleccionar —</option>
+          </select>
+          <span class="field-err" id="err-${prefix}-prest">Seleccioná un prestador.</span>
+        </div>
+        <div class="fg">
+          <label>Fecha de inicio</label>
+          <input id="${prefix}-fecha" type="date" oninput="clearFErr('${prefix}-fecha')">
+          <span class="field-err" id="err-${prefix}-fecha">Ingresá la fecha de inicio.</span>
+        </div>
+        <div class="fg full" style="grid-column:1/-1;">
+          <label>Horarios semanales</label>
+          <div id="${prefix}-horarios"></div>
+          <button class="btn-add-vinculo" type="button" id="${prefix}-add-horario" style="margin-top:2px;">+ Agregar horario</button>
+          <span class="field-err" id="err-${prefix}-dia">Agregá al menos un horario con día seleccionado.</span>
+        </div>
+      </div>
+      <div id="${prefix}-bloque-particular" class="hidden" style="margin-top:12px;">
+        <div class="grid2">
+          <div class="fg"><label>Sesiones contratadas</label>
+            <input id="${prefix}-sesiones" type="number" min="1" placeholder="Ej. 10" oninput="clearFErr('${prefix}-sesiones')">
+            <span class="field-err" id="err-${prefix}-sesiones">Ingresá el número de sesiones.</span>
+          </div>
+          <div class="fg"><label>Monto por sesión ($)</label>
+            <input id="${prefix}-monto" type="number" min="0" step="1" placeholder="Ej. 900" oninput="clearFErr('${prefix}-monto')">
+            <span class="field-err" id="err-${prefix}-monto">Ingresá el monto por sesión.</span>
+          </div>
+        </div>
+      </div>
+      <div id="${prefix}-bloque-bps" class="hidden" style="margin-top:12px;">
+        <div class="grid2">
+          <div class="fg"><label>Fecha de origen</label>
+            <input id="${prefix}-fecha-origen" type="date" oninput="clearFErr('${prefix}-fecha-origen')">
+            <span class="field-err" id="err-${prefix}-fecha-origen">Ingresá la fecha de origen.</span>
+          </div>
+          <div class="fg"><label>Fecha de fin de ciclo</label>
+            <input id="${prefix}-fecha-fin" type="date" oninput="clearFErr('${prefix}-fecha-fin')">
+            <span class="field-err" id="err-${prefix}-fecha-fin">Ingresá la fecha de fin.</span>
+          </div>
+          <div class="fg"><label>Periodicidad</label>
+            <select id="${prefix}-periodicidad" onchange="clearFErr('${prefix}-periodicidad')">
+              <option value="">— Seleccionar —</option>
+              <option>Semanal</option><option>Quincenal</option><option>Mensual</option>
+            </select>
+            <span class="field-err" id="err-${prefix}-periodicidad">Seleccioná la periodicidad.</span>
+          </div>
+        </div>
+      </div>
+      <div id="${prefix}-bloque-comun" class="hidden" style="margin-top:12px;">
+        <div class="grid2">
+          <div class="fg"><label>Sesiones contratadas</label>
+            <input id="${prefix}-sesiones-c" type="number" min="1" placeholder="Ej. 10" oninput="clearFErr('${prefix}-sesiones-c')">
+            <span class="field-err" id="err-${prefix}-sesiones-c">Ingresá el número de sesiones.</span>
+          </div>
+        </div>
+      </div>
+    `;
+    if (removable && removeCallback) {
+      div.querySelector('.btn-rm-vinculo').addEventListener('click', removeCallback);
+    }
+    // Populate selects
+    const profSel = div.querySelector(`#${prefix}-prof`);
+    db.profesionales.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); profSel.appendChild(o); });
+    const prestSel = div.querySelector(`#${prefix}-prest`);
+    db.prestadores.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
+    // Pre-fill if data provided
+    if (d.profesional) profSel.value = d.profesional;
+    if (d.prestador) { prestSel.value = d.prestador; setTimeout(()=>onVinculoPrestChange(prefix),0); }
+    if (d.fechaInicio) div.querySelector(`#${prefix}-fecha`).value = d.fechaInicio;
+    // Horarios: precargar existentes o una fila vacía
+    const horariosIniciales = (d.horarios&&d.horarios.length) ? d.horarios : parseHorarios(d.dia,d.hora);
+    if (horariosIniciales.length) horariosIniciales.forEach(h=>addHorarioRow(prefix,h.dia,h.hora));
+    else addHorarioRow(prefix,'','');
+    const addBtn = div.querySelector(`#${prefix}-add-horario`);
+    if (addBtn) addBtn.addEventListener('click',()=>addHorarioRow(prefix,'',''));
+    if (d.sesiones) { if(div.querySelector(`#${prefix}-sesiones`)) div.querySelector(`#${prefix}-sesiones`).value=d.sesiones; if(div.querySelector(`#${prefix}-sesiones-c`)) div.querySelector(`#${prefix}-sesiones-c`).value=d.sesiones; }
+    if (d.monto && div.querySelector(`#${prefix}-monto`)) div.querySelector(`#${prefix}-monto`).value=d.monto;
+    if (d.fechaOrigen && div.querySelector(`#${prefix}-fecha-origen`)) div.querySelector(`#${prefix}-fecha-origen`).value=d.fechaOrigen;
+    if (d.fechaFin && div.querySelector(`#${prefix}-fecha-fin`)) div.querySelector(`#${prefix}-fecha-fin`).value=d.fechaFin;
+    if (d.periodicidad && div.querySelector(`#${prefix}-periodicidad`)) div.querySelector(`#${prefix}-periodicidad`).value=d.periodicidad;
+    return div;
+  }
+
+  function onVinculoPrestChange(prefix) {
+    const val = document.getElementById(prefix+'-prest').value;
+    [`${prefix}-bloque-particular`,`${prefix}-bloque-bps`,`${prefix}-bloque-comun`].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden');});
+    if (val==='PARTICULAR') { const el=document.getElementById(prefix+'-bloque-particular'); if(el) el.classList.remove('hidden'); }
+    else if (val==='BPS') { const el=document.getElementById(prefix+'-bloque-bps'); if(el) el.classList.remove('hidden'); }
+    else if (val) { const el=document.getElementById(prefix+'-bloque-comun'); if(el) el.classList.remove('hidden'); }
+  }
+
+  // Read vínculo values from form, validate, return object or null
+  function readVinculoFields(prefix) {
+    let ok = true;
+    const req=(id,msg)=>{ if(!getVal(id)){showFErr(id,msg);ok=false;}else clearFErr(id); };
+    req(prefix+'-prof','Seleccioná un profesional.');
+    req(prefix+'-prest','Seleccioná un prestador.');
+    req(prefix+'-fecha','Ingresá la fecha de inicio.');
+    // Horarios: al menos uno con día seleccionado
+    const horarios = readHorarios(prefix).filter(h=>h.dia);
+    if (!horarios.length) { showFErr(prefix+'-dia','Agregá al menos un horario con día seleccionado.'); ok=false; }
+    else clearFErr(prefix+'-dia');
+    const prest = getVal(prefix+'-prest');
+    let tipo='comun', sesiones='', fechaOrigen='', fechaFin='', periodicidad='', monto='';
+    if (prest==='PARTICULAR') {
+      tipo='particular';
+      req(prefix+'-sesiones','Ingresá el número de sesiones.');
+      req(prefix+'-monto','Ingresá el monto por sesión.');
+      sesiones = getVal(prefix+'-sesiones');
+      monto = getVal(prefix+'-monto');
+    } else if (prest==='BPS') {
+      tipo='bps';
+      req(prefix+'-fecha-origen','Ingresá la fecha de origen.');
+      const fo=getVal(prefix+'-fecha-origen'), ff=getVal(prefix+'-fecha-fin');
+      if(!ff){showFErr(prefix+'-fecha-fin','Ingresá la fecha de fin.');ok=false;}
+      else if(fo&&ff&&ff<=fo){showFErr(prefix+'-fecha-fin','La fecha de fin debe ser posterior al origen.');ok=false;}
+      else clearFErr(prefix+'-fecha-fin');
+      req(prefix+'-periodicidad','Seleccioná la periodicidad.');
+      fechaOrigen=fo; fechaFin=ff; periodicidad=getVal(prefix+'-periodicidad');
+    } else if (prest) {
+      tipo='comun';
+      req(prefix+'-sesiones-c','Ingresá el número de sesiones.');
+      sesiones=getVal(prefix+'-sesiones-c');
+    }
+    if (!ok) return null;
+    const ser = serializeHorarios(horarios);
+    return { profesional:getVal(prefix+'-prof'), prestador:prest, tipo, fechaInicio:getVal(prefix+'-fecha'), dia:ser.dia, hora:ser.hora, horarios, sesiones, fechaOrigen, fechaFin, periodicidad, monto, estado:'activo', fechaCierre:'' };
+  }
+
+  // ─── ABM PACIENTES — ALTA ─────────────────────────────────────
+  let vinculosAltaCount = 0;
+  const vinculosAltaPrefixes = [];
+
+  function agregarVinculoAlta() {
+    const prefix = 'va' + (vinculosAltaCount++);
+    vinculosAltaPrefixes.push(prefix);
+    const container = document.getElementById('vinculos-alta-list');
+    const card = buildVinculoFields(prefix, null, true, () => {
+      const idx = vinculosAltaPrefixes.indexOf(prefix);
+      if (idx > -1) vinculosAltaPrefixes.splice(idx, 1);
+      card.remove();
+    });
+    container.appendChild(card);
+    document.getElementById('err-vinculos').classList.remove('show');
+  }
+
+  async function submitPaciente() {
+    let ok = true;
+    const req=(id,msg)=>{ if(!getVal(id)){showFErr(id,msg);ok=false;}else clearFErr(id); };
+    req('pac-nombre','Ingresá el nombre del paciente.');
+    req('pac-ci','Ingresá el número de cédula.');
+    req('pac-fecha-nac','Ingresá la fecha de nacimiento.');
+    req('pac-tutor','Ingresá el nombre del referente familiar.');
+    req('pac-tutor-tel','Ingresá el teléfono del referente.');
+    const tm=getVal('pac-tutor-mail');
+    if(tm&&!isValidEmail(tm)){showFErr('pac-tutor-mail','El mail no tiene un formato válido.');ok=false;}
+    else clearFErr('pac-tutor-mail');
+
+    // Validar vínculos
+    let vinculosData = [];
+    if (vinculosAltaPrefixes.length === 0) {
+      document.getElementById('err-vinculos').classList.add('show');
+      ok = false;
+    } else {
+      for (const prefix of vinculosAltaPrefixes) {
+        const v = readVinculoFields(prefix);
+        if (!v) ok = false;
+        else vinculosData.push(v);
+      }
+    }
+
+    if (!ok) return;
+
+    const pac = { nombre:getVal('pac-nombre'), ci:getVal('pac-ci'), fechaNac:getVal('pac-fecha-nac'), tutor:getVal('pac-tutor'), tutorTel:getVal('pac-tutor-tel'), tutorMail:tm };
+    if (db.pacientes.find(p=>p.nombre===pac.nombre)) {
+      showFErr('pac-nombre','Ya existe un paciente con ese nombre.'); return;
+    }
+    db.pacientes.push(pac);
+    vinculosData.forEach(v => db.vinculos.push({ paciente: pac.nombre, ...v }));
+
+    document.getElementById('pacientes-ok-txt').textContent = 'Paciente dado de alta con '+vinculosData.length+' vínculo(s).';
+    document.getElementById('pacientes-ok').classList.add('show');
+    updateCounts(); populatePacienteSelects();
+
+    const btn = document.getElementById('btn-pacientes');
+    btn.disabled=true; btn.textContent='Guardando…';
+    setSyncLoading('Guardando…');
+    try { await Promise.all([guardarPacientes(), guardarVinculos()]); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    btn.disabled=false; btn.textContent='Registrar alta';
+    setTimeout(()=>resetF('pacientes'), 1000);
+  }
+
+  // ─── ABM VÍNCULOS — solo ALTA ─────────────────────────────────
+  function resetVinculoForm() {
+    document.getElementById('valt-paciente').value='';
+    document.getElementById('valt-vinculo-wrap').innerHTML='';
+    vinculosAltaCount=0;
+    addVinculoAltaForm();
+    document.getElementById('vinculos-alta-ok').classList.remove('show');
+  }
+
+  function addVinculoAltaForm() {
+    const prefix = 'vaf' + (vinculosAltaCount++);
+    const wrap = document.getElementById('valt-vinculo-wrap');
+    const card = buildVinculoFields(prefix, null, false, null);
+    wrap.appendChild(card);
+    return prefix;
+  }
+
+  let valtPrefix = null;
+  function initVinculoAltaForm() {
+    vinculosAltaCount = 0;
+    const wrap = document.getElementById('valt-vinculo-wrap');
+    wrap.innerHTML = '';
+    valtPrefix = 'vaf' + (vinculosAltaCount++);
+    const card = buildVinculoFields(valtPrefix, null, false, null);
+    wrap.appendChild(card);
+  }
+
+  async function submitVinculoAlta() {
+    const pacNombre = getVal('valt-paciente');
+    if (!pacNombre) { showFErr('valt-paciente','Seleccioná un paciente.'); return; }
+    clearFErr('valt-paciente');
+    const v = readVinculoFields(valtPrefix);
+    if (!v) return;
+    db.vinculos.push({ paciente: pacNombre, ...v });
+    document.getElementById('vinculos-alta-ok').classList.add('show');
+    updateCounts();
+    const btn=document.querySelector('#abm-vinculos .btn-pri.alta');
+    if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+    setSyncLoading('Guardando…');
+    try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    if(btn){btn.disabled=false;btn.textContent='Registrar vínculo';}
+    setTimeout(()=>{ resetVinculoForm(); document.getElementById('vinculos-alta-ok').classList.remove('show'); }, 1500);
+  }
+
+  // ─── ABM PRESTADORES / PROFESIONALES — solo ALTA ─────────────
+  async function submitF(form) {
+    let ok = true;
+    const req=(id)=>{ if(!getVal(id)){showFErr(id);ok=false;}else clearFErr(id); };
+    const btn = document.getElementById('btn-'+form);
+    if (form==='prestadores') {
+      ['p-nombre','p-dir','p-contacto','p-tel','p-mail'].forEach(req);
+      if (!ok) return;
+      const nombre=getVal('p-nombre');
+      if (db.prestadores.find(p=>p.nombre===nombre)) { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
+      const datos={dir:getVal('p-dir'),contacto:getVal('p-contacto'),tel:getVal('p-tel'),mail:getVal('p-mail'),tickets:document.getElementById('p-tickets').checked};
+      db.prestadores.push({nombre,tipo:'comun',...datos});
+      document.getElementById('prestadores-ok').classList.add('show');
+      btn.disabled=true; btn.textContent='Guardando…';
+      setSyncLoading('Guardando…');
+      try { await guardarPrestadores(); setSyncOk(); populateAllSelects(); } catch(e){setSyncErr();}
+      btn.disabled=false; btn.textContent='Registrar alta';
+    } else if (form==='profesionales') {
+      ['pr-nombre','pr-esp','pr-tel','pr-mail'].forEach(req);
+      const mail=getVal('pr-mail');
+      if(mail&&!isValidEmail(mail)){showFErr('pr-mail','Mail inválido.');ok=false;}
+      if (!ok) return;
+      const nombre=getVal('pr-nombre');
+      if (db.profesionales.find(p=>p.nombre===nombre)) { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
+      const datos={esp:getVal('pr-esp'),tel:getVal('pr-tel'),mail};
+      db.profesionales.push({nombre,...datos});
+      document.getElementById('profesionales-ok').classList.add('show');
+      renderProfList();
+      btn.disabled=true; btn.textContent='Guardando…';
+      setSyncLoading('Guardando…');
+      try {
+        await guardarProfesionales();
+        try { await driveCarpetaProfesional(nombre); } catch(de){ console.warn('No se pudo crear carpeta Drive:', de); }
+        setSyncOk(); populateAllSelects();
+      } catch(e){setSyncErr();}
+      btn.disabled=false; btn.textContent='Registrar alta';
+    }
+    updateCounts();
+    setTimeout(()=>resetF(form), 1000);
+  }
+
+  function resetF(form) {
+    if (form==='prestadores') {
+      ['p-nombre','p-dir','p-contacto','p-tel','p-mail'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('err');}const err=document.getElementById('err-'+id);if(err)err.classList.remove('show');});
+      const tk=document.getElementById('p-tickets'); if(tk) tk.checked=false;
+    } else if (form==='profesionales') {
+      ['pr-nombre','pr-esp','pr-tel','pr-mail'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('err');}const err=document.getElementById('err-'+id);if(err)err.classList.remove('show');});
+    } else if (form==='pacientes') {
+      ['pac-nombre','pac-ci','pac-fecha-nac','pac-tutor','pac-tutor-tel','pac-tutor-mail'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('err');}const err=document.getElementById('err-'+id);if(err)err.classList.remove('show');});
+      document.getElementById('vinculos-alta-list').innerHTML='';
+      vinculosAltaCount=0; vinculosAltaPrefixes.length=0;
+      document.getElementById('err-vinculos').classList.remove('show');
+      document.getElementById('pacientes-ok').classList.remove('show');
+    }
+    document.getElementById(form+'-ok')?.classList.remove('show');
+  }
+
+  // ─── NAVEGACIÓN ───────────────────────────────────────────────
+  function goScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+  const ADMIN_PASSWORD = 'Voltalabarra';
+  let adminUnlocked = false;
+  function goAdmin() {
+    if (!adminUnlocked) {
+      document.getElementById('admin-pass-input').value='';
+      document.getElementById('admin-pass-err').classList.remove('show');
+      goScreen('screen-admin-pass');
+      setTimeout(()=>document.getElementById('admin-pass-input').focus(),50);
+      return;
+    }
+    updateCounts(); ['prestadores','profesionales','pacientes'].forEach(k=>renderQ(k,''));
+    goScreen('screen-admin');
+    // Asegurar que ABM esté activo y su primer sub-tab también
+    const abmTab=document.getElementById('tab-abm');
+    if(abmTab&&!abmTab.classList.contains('active')) switchMain('abm',abmTab);
+  }
+  function checkAdminPassword() {
+    const val = document.getElementById('admin-pass-input').value;
+    if (val === ADMIN_PASSWORD) { adminUnlocked = true; goAdmin(); }
+    else {
+      document.getElementById('admin-pass-err').classList.add('show');
+      document.getElementById('admin-pass-input').value='';
+      document.getElementById('admin-pass-input').focus();
+    }
+  }
+  function switchMain(id, el) {
+    document.querySelectorAll('.main-section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('main-'+id).classList.add('active'); el.classList.add('active');
+    if (id==='consultas') { updateCounts(); ['prestadores','profesionales','pacientes'].forEach(k=>renderQ(k,'')); document.getElementById('admin-asist-fecha').value=todayISO(); populateAsistPrestSelect(); renderAsistencia('admin'); }
+  }
+  function switchSub(main, sub, el) {
+    const parent=document.getElementById('main-'+main);
+    parent.querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
+    parent.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(main+'-'+sub).classList.add('active'); el.classList.add('active');
+    if (main==='consultas') renderQ(sub,'');
+    if (main==='abm'&&sub==='vinculos') { populatePacienteSelects(); initVinculoAltaForm(); }
+    if (main==='abm'&&sub==='contratos') { populateCtrPrestSelect(); renderContratosTable(); }
+  }
+
+  // ─── PROFESIONALES ────────────────────────────────────────────
+  function renderProfList() {
+    const list=document.getElementById('prof-list');
+    list.innerHTML=db.profesionales.map((p,i)=>{
+      const ini=p.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
+      return `<div class="prof-item" onclick="selectProf(${i})"><div class="prof-avatar">${ini}</div><div><div class="prof-item-name">${esc(p.nombre)}</div><div class="prof-item-esp">${esc(p.esp)}</div></div></div>`;
+    }).join('');
+  }
+  function selectProf(i) {
+    profesionalActivo=db.profesionales[i];
+    const ini=profesionalActivo.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
+    document.getElementById('pm-avatar').textContent=ini;
+    document.getElementById('pm-nombre').textContent=profesionalActivo.nombre;
+    document.getElementById('pm-esp').textContent=profesionalActivo.esp;
+    goScreen('screen-profmenu');
+  }
+
+  // ─── DOCUMENTOS DEL PROFESIONAL ───────────────────────────────
+  function goDocumentos() {
+    document.getElementById('doc-prof-sub').textContent = profesionalActivo.nombre + (profesionalActivo.esp ? ' — '+profesionalActivo.esp : '');
+    resetDocForm();
+    renderDocsProf();
+    goScreen('screen-documentos');
+  }
+  function renderDocsProf() {
+    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre);
+    const tb = document.getElementById('tbody-docs-prof');
+    tb.innerHTML = docs.length
+      ? docs.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin documentos cargados</td></tr>`;
+  }
+  function resetDocForm() {
+    const n=document.getElementById('doc-nombre'); if(n){n.value='';n.classList.remove('err');}
+    const f=document.getElementById('doc-file'); if(f){f.value='';f.classList.remove('err');}
+    clearFErr('doc-nombre'); clearFErr('doc-file');
+    document.getElementById('doc-ok').classList.remove('show');
+    document.getElementById('doc-err').classList.remove('show');
+  }
+  async function subirDocumento() {
+    let ok=true;
+    const nombre=getVal('doc-nombre');
+    const fileInput=document.getElementById('doc-file');
+    const file=fileInput.files&&fileInput.files[0];
+    if(!nombre){showFErr('doc-nombre','Ingresá un nombre para el documento.');ok=false;}else clearFErr('doc-nombre');
+    if(!file){showFErr('doc-file','Seleccioná un archivo para subir.');ok=false;}else clearFErr('doc-file');
+    if(!ok) return;
+    const errBox=document.getElementById('doc-err'); errBox.classList.remove('show');
+    const btn=document.getElementById('btn-doc-subir');
+    btn.disabled=true; btn.textContent='Subiendo…';
+    setSyncLoading('Subiendo a Drive…');
+    try {
+      const folderId = await driveCarpetaProfesional(profesionalActivo.nombre);
+      const subido = await driveSubirArchivo(file, folderId);
+      const link = subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
+      const doc = { profesional:profesionalActivo.nombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10) };
+      db.documentos.push(doc);
+      await guardarDocumentoSheet(doc);
+      setSyncOk();
+      document.getElementById('doc-ok').classList.add('show');
+      renderDocsProf();
+      document.getElementById('doc-nombre').value='';
+      fileInput.value='';
+    } catch(e) {
+      console.error(e);
+      setSyncErr();
+      errBox.textContent='No se pudo subir el documento. Verificá la conexión y volvé a intentar.';
+      errBox.classList.add('show');
+    }
+    btn.disabled=false; btn.textContent='Subir documento';
+  }
+
+  // ─── SESIÓN ───────────────────────────────────────────────────
+  function goSesion() {
+    document.getElementById('ses-prof-sub').textContent=profesionalActivo.nombre+' — '+profesionalActivo.esp;
+    const sel=document.getElementById('ses-paciente');
+    sel.innerHTML='<option value="">— Seleccionar paciente —</option>';
+    // Pacientes vinculados a este profesional
+    const misVinculos=db.vinculos.filter(v=>v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    const nombres=[...new Set(misVinculos.map(v=>v.paciente))];
+    nombres.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+    sel.value='';
+    document.getElementById('ses-pac-card').classList.add('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+    clearFErr('ses-paciente');
+    goScreen('screen-sesion');
+  }
+
+  function onSesionPacienteChange() {
+    const nombre=document.getElementById('ses-paciente').value;
+    clearFErr('ses-paciente');
+    if (!nombre) { document.getElementById('ses-pac-card').classList.add('hidden'); return; }
+    const pac=db.pacientes.find(p=>p.nombre===nombre);
+    const vinc=db.vinculos.find(v=>v.paciente===nombre&&v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    if (!pac||!vinc) return;
+    const tipoPill=vinc.tipo==='particular'?'pill-p':vinc.tipo==='bps'?'pill-b':'pill-c';
+    const tipoLabel=vinc.tipo==='particular'?'Particular':vinc.tipo==='bps'?'BPS':'Prestador';
+    document.getElementById('ses-pac-card-inner').innerHTML=`
+      <div class="pac-card-row"><span class="pac-card-lbl">Cédula</span><span class="pac-card-val">${esc(pac.ci)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Fecha de nac.</span><span class="pac-card-val">${fmtFechaNac(pac.fechaNac)}${pac.fechaNac?' · '+fmtEdad(pac.fechaNac):''}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Tutor</span><span class="pac-card-val">${esc(pac.tutor)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Teléfono referente</span><span class="pac-card-val">${esc(pac.tutorTel)}</span></div>
+      <div class="pac-card-row"><span class="pac-card-lbl">Prestador</span><span class="pac-card-val"><span class="pill ${tipoPill}">${esc(vinc.prestador)}</span></span></div>
+      ${vinc.dia?`<div class="pac-card-row"><span class="pac-card-lbl">Día y horario</span><span class="pac-card-val">${esc(fmtHorarios(vinc))}</span></div>`:''}
+    `;
+    document.getElementById('ses-fecha').value=hoyISO();
+    document.getElementById('ses-obs').value='';
+    document.getElementById('ses-pac-card').classList.remove('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+  }
+
+  function resetSesion() {
+    document.getElementById('ses-paciente').value='';
+    document.getElementById('ses-obs').value='';
+    document.getElementById('ses-pac-card').classList.add('hidden');
+    document.getElementById('ses-ok').classList.remove('show');
+    clearFErr('ses-paciente'); clearFErr('ses-obs');
+  }
+
+  async function guardarSesion() {
+    let ok=true;
+    const pac=document.getElementById('ses-paciente').value;
+    if(!pac){showFErr('ses-paciente','Seleccioná un paciente.');ok=false;}else clearFErr('ses-paciente');
+    const obs=document.getElementById('ses-obs').value.trim();
+    if(!obs){showFErr('ses-obs','Ingresá al menos una observación antes de guardar.');ok=false;}else clearFErr('ses-obs');
+    const fecha=document.getElementById('ses-fecha').value;
+    if(!fecha){showFErr('ses-obs','Ingresá la fecha de la sesión.');ok=false;}
+    if(!ok) return;
+    const ses={paciente:pac,profesional:profesionalActivo.nombre,fecha:fecha,hora:'',obs};
+    db.sesiones.push(ses);
+    const btn=document.querySelector('#screen-sesion .btn-pri.purple');
+    if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+    document.getElementById('ses-ok').classList.add('show');
+    setSyncLoading('Guardando sesión…');
+    try { await guardarSesionSheet(ses); setSyncOk(); } catch(e){setSyncErr('Error al guardar sesión');}
+    if(btn){btn.disabled=false;btn.textContent='Guardar sesión';}
+    setTimeout(()=>resetSesion(), 1000);
+  }
+
+  // ─── HISTORIA ─────────────────────────────────────────────────
+  function goHistoria() {
+    document.getElementById('hist-prof-sub').textContent=profesionalActivo.nombre+' — '+profesionalActivo.esp;
+    const sel=document.getElementById('hist-paciente');
+    sel.innerHTML='<option value="">— Seleccionar paciente —</option>';
+    const nombres=[...new Set(db.vinculos.filter(v=>v.profesional===profesionalActivo.nombre).map(v=>v.paciente))];
+    nombres.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+    sel.value='';
+    document.getElementById('hist-lista').classList.add('hidden');
+    document.getElementById('hist-detalle').classList.add('hidden');
+    goScreen('screen-historia');
+  }
+
+  function onHistoriaPacienteChange() {
+    const nombre=document.getElementById('hist-paciente').value;
+    document.getElementById('hist-detalle').classList.add('hidden');
+    if (!nombre) { document.getElementById('hist-lista').classList.add('hidden'); return; }
+    const sesiones=db.sesiones.filter(s=>s.paciente===nombre&&s.profesional===profesionalActivo.nombre).sort((a,b)=>a.fecha<b.fecha?1:-1);
+    const tbody=document.getElementById('tbody-sesiones');
+    tbody.innerHTML=sesiones.length
+      ? sesiones.map(s=>{const idx=db.sesiones.indexOf(s);return`<tr class="clickable" onclick="verSesion('${nombre.replace(/'/g,"\\'")}',${idx})"><td>${fmtFecha(s.fecha)}</td><td>${esc(s.hora)}</td><td style="color:var(--text-secondary)">${esc(s.obs.slice(0,60))}${s.obs.length>60?'…':''}</td></tr>`;}).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin sesiones registradas para este paciente.</td></tr>`;
+    document.getElementById('hist-lista').classList.remove('hidden');
+  }
+
+  function verSesion(pacNombre, idx) {
+    const s=db.sesiones[idx];
+    document.getElementById('det-paciente').textContent=pacNombre;
+    document.getElementById('det-fecha-hora').textContent=fmtFecha(s.fecha)+(s.hora?' — '+s.hora:'');
+    document.getElementById('det-prof-badge').textContent=profesionalActivo.nombre;
+    document.getElementById('det-obs').textContent=s.obs;
+    document.getElementById('hist-lista').classList.add('hidden');
+    document.getElementById('hist-detalle').classList.remove('hidden');
+  }
+
+  // ─── ASISTENCIA ───────────────────────────────────────────────
+  const DIAS_SEMANA=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  function todayISO() { return new Date().toISOString().slice(0,10); }
+
+  function goAsistenciaProf() {
+    document.getElementById('asist-prof-sub').textContent=profesionalActivo.nombre+' — '+profesionalActivo.esp;
+    document.getElementById('prof-asist-fecha').value=todayISO();
+    renderAsistencia('prof');
+    goScreen('screen-asistencia');
+  }
+
+  function populateAsistPrestSelect() {
+    const sel=document.getElementById('admin-asist-prest');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Todos</option>';
+    db.prestadores.forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; sel.appendChild(o); });
+    sel.value=cur||'';
+  }
+
+  // ─── CONSULTA: PACIENTES POR PROFESIONAL ──────────────────────
+  function populatePorProfSelect() {
+    const sel=document.getElementById('porprof-sel');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">— Seleccionar —</option>';
+    db.profesionales.forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
+    sel.value=cur||'';
+    if (sel.value) renderPorProf(); else document.getElementById('porprof-result').innerHTML='';
+  }
+
+  function renderPorProf() {
+    const prof=document.getElementById('porprof-sel').value;
+    const cont=document.getElementById('porprof-result');
+    if (!prof) { cont.innerHTML=''; return; }
+    const vincs=db.vinculos.map((v,i)=>({v,i})).filter(o=>o.v.profesional===prof);
+    const activos=vincs.filter(o=>o.v.estado!=='cerrado');
+    const cerrados=vincs.filter(o=>o.v.estado==='cerrado');
+
+    const fila=(o,esActivo)=>{
+      const v=o.v;
+      const pac=db.pacientes.find(p=>p.nombre===v.paciente);
+      const ci=pac?pac.ci:'—';
+      const pc=v.tipo==='particular'?'pill-p':v.tipo==='bps'?'pill-b':'pill-c';
+      const accion=esActivo
+        ? `<button class="btn-vinculo-action" onclick="abrirReasignacion(${o.i})">Reasignar</button>`
+        : (v.fechaCierre?`<span class="pac-card-val" style="font-size:12px;">Cerrado ${fmtFecha(v.fechaCierre)}</span>`:'<span class="pac-card-val" style="font-size:12px;">Cerrado</span>');
+      return `<tr><td>${esc(v.paciente)}</td><td>${esc(ci)}</td><td><span class="pill ${pc}">${esc(v.prestador)}</span></td><td>${esc(fmtHorarios(v))}</td><td>${fmtFecha(v.fechaInicio)}</td><td style="text-align:right;">${accion}</td></tr>`;
+    };
+
+    let html=`<div class="sec-lbl" style="margin:1.25rem 0 10px;">Vínculos activos <span class="count-badge">${activos.length}</span></div>`;
+    html+=`<div class="tbl-wrap"><table>
+      <thead><tr><th style="width:24%">Paciente</th><th style="width:14%">Cédula</th><th style="width:18%">Prestador</th><th style="width:22%">Día y horario</th><th style="width:12%">Inicio</th><th style="width:10%"></th></tr></thead>
+      <tbody>${activos.length?activos.map(o=>fila(o,true)).join(''):`<tr><td colspan="6" class="empty-state">Sin vínculos activos</td></tr>`}</tbody>
+    </table></div>`;
+    html+=`<div class="sec-lbl" style="margin:1.5rem 0 10px;">Vínculos cerrados <span class="count-badge">${cerrados.length}</span></div>`;
+    html+=`<div class="tbl-wrap"><table>
+      <thead><tr><th style="width:24%">Paciente</th><th style="width:14%">Cédula</th><th style="width:18%">Prestador</th><th style="width:22%">Día y horario</th><th style="width:12%">Inicio</th><th style="width:10%"></th></tr></thead>
+      <tbody>${cerrados.length?cerrados.map(o=>fila(o,false)).join(''):`<tr><td colspan="6" class="empty-state">Sin vínculos cerrados</td></tr>`}</tbody>
+    </table></div>`;
+    cont.innerHTML=html;
+  }
+
+  // ─── HISTORIA DEL PACIENTE (consultas) ────────────────────────
+  function populateHPacSelect() {
+    const sel=document.getElementById('hpac-sel');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">— Seleccionar —</option>';
+    db.pacientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))
+      .forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.ci?' ('+p.ci+')':''); sel.appendChild(o); });
+    sel.value=cur||'';
+    if (sel.value) renderHPaciente(); else document.getElementById('hpac-result').innerHTML='';
+  }
+
+  function renderHPaciente() {
+    const nombre=document.getElementById('hpac-sel').value;
+    const cont=document.getElementById('hpac-result');
+    if (!nombre) { cont.innerHTML=''; return; }
+    const pac=db.pacientes.find(p=>p.nombre===nombre);
+    if (!pac) { cont.innerHTML='<div class="hpac-empty">Paciente no encontrado.</div>'; return; }
+
+    // 1) Datos generales
+    let html=`<div class="detail-panel"><div class="detail-panel-title">${esc(pac.nombre)}</div>`;
+    html+=`<div class="detail-grid">
+      <div class="detail-row"><span class="detail-lbl">Cédula</span><span class="detail-val">${esc(pac.ci)||'—'}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Fecha de nacimiento</span><span class="detail-val">${fmtFechaNac(pac.fechaNac||'')}${pac.fechaNac?' · '+fmtEdad(pac.fechaNac):''}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Tutor / referente</span><span class="detail-val">${esc(pac.tutor)||'—'}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Teléfono referente</span><span class="detail-val">${esc(pac.tutorTel)||'—'}</span></div>
+      <div class="detail-row"><span class="detail-lbl">Email referente</span><span class="detail-val">${esc(pac.tutorMail)||'—'}</span></div>
+    </div>`;
+
+    // 2) Vínculos
+    const vincs=db.vinculos.filter(v=>v.paciente===nombre);
+    html+=`<div class="hpac-sec"><div class="hpac-sec-title">Vínculos</div>`;
+    if (!vincs.length) { html+=`<div class="hpac-empty">Sin vínculos registrados.</div>`; }
+    else {
+      vincs.slice().sort((a,b)=>(a.estado==='cerrado'?1:0)-(b.estado==='cerrado'?1:0)).forEach(v=>{
+        const pc=v.tipo==='particular'?'pill-p':v.tipo==='bps'?'pill-b':'pill-c';
+        const cerrado=v.estado==='cerrado';
+        html+=`<div class="hpac-vinc">
+          <div class="hpac-vinc-head">
+            <span class="hpac-vinc-prof">${esc(v.profesional)||'—'}</span>
+            ${cerrado?`<span class="pill" style="background:var(--border);color:var(--text-secondary);">Cerrado${v.fechaCierre?' · '+fmtFecha(v.fechaCierre):''}</span>`:'<span class="pill pill-c">Activo</span>'}
+          </div>
+          <div class="hpac-vinc-meta">
+            <span class="pill ${pc}">${esc(v.prestador)||'—'}</span>
+            ${v.dia?' · '+esc(fmtHorarios(v)):''}
+            ${v.fechaInicio?' · Inicio '+fmtFecha(v.fechaInicio):''}
+          </div>
+        </div>`;
+      });
+    }
+    html+=`</div>`;
+
+    // 3) Archivos asociados
+    const docs=db.docsPacientes.filter(d=>d.paciente===nombre)
+      .slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    html+=`<div class="hpac-sec"><div class="hpac-sec-title">Archivos asociados</div>`;
+    if (!docs.length) { html+=`<div class="hpac-empty">Sin archivos.</div>`; }
+    else {
+      docs.forEach(d=>{
+        const link=d.link||(d.fileId?'https://drive.google.com/file/d/'+d.fileId+'/view':'');
+        html+=`<div class="hpac-file">
+          <span>📄</span>
+          ${link?`<a href="${esc(link)}" target="_blank" rel="noopener">${esc(d.nombre)||'(sin nombre)'}</a>`:`<span>${esc(d.nombre)||'(sin nombre)'}</span>`}
+          ${d.fecha?`<span class="hpac-file-date">${fmtFecha(d.fecha)}</span>`:''}
+        </div>`;
+      });
+    }
+    html+=`</div>`;
+
+    // 4) Sesiones (más reciente primero), acordeón
+    const ses=db.sesiones.filter(s=>s.paciente===nombre)
+      .slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    html+=`<div class="hpac-sec"><div class="hpac-sec-title">Sesiones <span class="count-badge">${ses.length}</span></div>`;
+    if (!ses.length) { html+=`<div class="hpac-empty">Sin sesiones registradas.</div>`; }
+    else {
+      ses.forEach((s,i)=>{
+        const prev=esc((s.obs||'').slice(0,80))+((s.obs||'').length>80?'…':'');
+        html+=`<div class="hpac-ses" id="hpac-ses-${i}">
+          <div class="hpac-ses-head" onclick="toggleHpacSes(${i})">
+            <span class="hpac-ses-arrow">▶</span>
+            <div style="flex:1;min-width:0;">
+              <span class="hpac-ses-fecha">${fmtFecha(s.fecha)}</span>
+              <span class="hpac-ses-prof"> · ${esc(s.profesional)||'—'}</span>
+              <div class="hpac-ses-prev">${prev||'(sin observaciones)'}</div>
+            </div>
+          </div>
+          <div class="hpac-ses-body">${esc(s.obs)||'(sin observaciones)'}</div>
+        </div>`;
+      });
+    }
+    html+=`</div></div>`;
+
+    cont.innerHTML=html;
+  }
+
+  function toggleHpacSes(i) {
+    const el=document.getElementById('hpac-ses-'+i);
+    if (el) el.classList.toggle('open');
+  }
+
+  // ─── REASIGNACIÓN ─────────────────────────────────────────────
+  let reasigIdx = null;
+  function abrirReasignacion(vidx) {
+    reasigIdx = vidx;
+    const v = db.vinculos[vidx];
+    document.getElementById('reasig-sub').textContent = `${v.paciente} — actualmente con ${v.profesional}`;
+    const tipoLabel=v.tipo==='particular'?'Particular':v.tipo==='bps'?'BPS':'Prestador';
+    document.getElementById('reasig-info').innerHTML =
+      `Se cerrará el vínculo actual con <strong>${esc(v.profesional)}</strong> y se abrirá uno nuevo. Se heredan prestador (<strong>${esc(v.prestador)}</strong> · ${tipoLabel})${v.sesiones?`, sesiones contratadas (<strong>${esc(v.sesiones)}</strong>)`:''} y las fechas. El historial de sesiones previo se conserva.`;
+    // profesional destino: todos menos el actual
+    const sel=document.getElementById('reasig-prof');
+    sel.innerHTML='<option value="">— Seleccionar —</option>';
+    db.profesionales.filter(p=>p.nombre!==v.profesional).forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
+    clearFErr('reasig-prof'); clearFErr('reasig-dia');
+    // horarios sugeridos (heredados, editables)
+    const cont=document.getElementById('reasig-horarios');
+    cont.innerHTML='';
+    const hs=(v.horarios&&v.horarios.length?v.horarios:parseHorarios(v.dia,v.hora));
+    if (hs.length) hs.forEach(h=>addHorarioRow('reasig',h.dia,h.hora));
+    else addHorarioRow('reasig','','');
+    const addBtn=document.getElementById('reasig-add-horario');
+    addBtn.onclick=()=>addHorarioRow('reasig','','');
+    document.getElementById('reasig-ok').classList.remove('show');
+    const btn=document.getElementById('btn-reasig'); btn.disabled=false; btn.textContent='Confirmar reasignación';
+    goScreen('screen-reasignar');
+  }
+
+  function cancelarReasignacion() {
+    reasigIdx=null;
+    goAdmin();
+    const consultasTab=document.getElementById('tab-consultas');
+    if (consultasTab) switchMain('consultas', consultasTab);
+    const subTabs=document.querySelectorAll('#main-consultas .sub-tab');
+    if (subTabs.length) subTabs[subTabs.length-1].click();
+  }
+
+  async function confirmarReasignacion() {
+    if (reasigIdx===null) return;
+    const v=db.vinculos[reasigIdx];
+    let ok=true;
+    const nuevoProf=document.getElementById('reasig-prof').value;
+    if (!nuevoProf){showFErr('reasig-prof','Seleccioná el profesional destino.');ok=false;}else clearFErr('reasig-prof');
+    const horarios=readHorarios('reasig').filter(h=>h.dia);
+    if (!horarios.length){showFErr('reasig-dia','Agregá al menos un horario con día seleccionado.');ok=false;}else clearFErr('reasig-dia');
+    if (!ok) return;
+    const btn=document.getElementById('btn-reasig');
+    btn.disabled=true; btn.textContent='Guardando…';
+    setSyncLoading('Guardando…');
+    try {
+      const hoy=new Date().toISOString().slice(0,10);
+      const ser=serializeHorarios(horarios);
+      // 1) cerrar el viejo
+      db.vinculos[reasigIdx]={...v, estado:'cerrado', fechaCierre:hoy};
+      // 2) abrir el nuevo, heredando todo menos profesional/horarios
+      const nuevo={
+        paciente:v.paciente, profesional:nuevoProf, prestador:v.prestador, tipo:v.tipo,
+        fechaInicio:hoy, dia:ser.dia, hora:ser.hora, horarios,
+        sesiones:v.sesiones||'', fechaOrigen:v.fechaOrigen||'', fechaFin:v.fechaFin||'', periodicidad:v.periodicidad||'',
+        estado:'activo', fechaCierre:''
+      };
+      db.vinculos.push(nuevo);
+      await guardarVinculos();
+      setSyncOk(); populateAllSelects();
+      document.getElementById('reasig-ok').classList.add('show');
+      setTimeout(()=>cancelarReasignacion(), 1200);
+    } catch(e) {
+      console.error(e); setSyncErr();
+      btn.disabled=false; btn.textContent='Confirmar reasignación';
+    }
+  }
+
+  function renderAsistencia(modo) {
+    const fechaId=modo==='admin'?'admin-asist-fecha':'prof-asist-fecha';
+    const tbodyId=modo==='admin'?'tbody-asist-admin':'tbody-asist-prof';
+    const statId=modo==='admin'?'admin-asist-stat':'prof-asist-stat';
+    const fechaISO=document.getElementById(fechaId).value;
+    const tbody=document.getElementById(tbodyId);
+    const stat=document.getElementById(statId);
+    if (!fechaISO) { tbody.innerHTML=`<tr><td colspan="7" class="empty-state">Seleccioná una fecha.</td></tr>`; stat.innerHTML=''; return; }
+    const diaSemana=DIAS_SEMANA[new Date(fechaISO+'T12:00:00').getDay()];
+
+    // Candidatos: por cada vínculo, una entrada por cada horario que caiga en el día
+    let candidatos=[];
+    db.vinculos.forEach(v=>{
+      if (v.estado==='cerrado') return;
+      if (v.tipo==='bps') {
+        if (v.fechaOrigen&&fechaISO<v.fechaOrigen) return;
+        if (v.fechaFin&&fechaISO>v.fechaFin) return;
+      }
+      const hs=(v.horarios&&v.horarios.length?v.horarios:parseHorarios(v.dia,v.hora));
+      hs.filter(h=>h.dia===diaSemana).forEach(h=>candidatos.push({v,hora:h.hora}));
+    });
+
+    if (modo==='admin') {
+      const prestFiltro=document.getElementById('admin-asist-prest').value;
+      if (prestFiltro) candidatos=candidatos.filter(c=>c.v.prestador===prestFiltro);
+    } else {
+      candidatos=candidatos.filter(c=>c.v.profesional===profesionalActivo.nombre);
+    }
+
+    if (!candidatos.length) {
+      const cols=modo==='admin'?7:6;
+      tbody.innerHTML=`<tr><td colspan="${cols}" class="empty-state">No hay vínculos programados para el ${diaSemana} ${fmtFecha(fechaISO)}.</td></tr>`;
+      stat.innerHTML=''; return;
+    }
+
+    let asistieron=0;
+    const rows=candidatos.map(c=>{
+      const v=c.v;
+      const pac=db.pacientes.find(p=>p.nombre===v.paciente);
+      const ci=pac?pac.ci:'—';
+      const asistio=db.sesiones.some(s=>s.paciente===v.paciente&&s.profesional===v.profesional&&s.fecha===fechaISO);
+      if(asistio) asistieron++;
+      const tipoPill=v.tipo==='particular'?'pill-p':v.tipo==='bps'?'pill-b':'pill-c';
+      const tipoLabel=v.tipo==='particular'?'Particular':v.tipo==='bps'?'BPS':'Prestador';
+      const asistCol=asistio?`<span class="asist-ok">✓ Asistió</span>`:`<span class="asist-no">✗ Sin sesión</span>`;
+      if (modo==='admin') return `<tr><td>${esc(v.paciente)}</td><td>${esc(ci)}</td><td><span class="pill ${tipoPill}">${tipoLabel}</span></td><td>${esc(v.profesional)}</td><td>${esc(diaSemana)}</td><td>${esc(c.hora||'—')}</td><td>${asistCol}</td></tr>`;
+      return `<tr><td>${esc(v.paciente)}</td><td>${esc(ci)}</td><td><span class="pill ${tipoPill}">${esc(v.prestador)}</span></td><td>${esc(diaSemana)}</td><td>${esc(c.hora||'—')}</td><td>${asistCol}</td></tr>`;
+    }).join('');
+    tbody.innerHTML=rows;
+    const ausentes=candidatos.length-asistieron;
+    stat.innerHTML=`
+      <div class="asist-stat-box"><div class="asist-stat-num">${candidatos.length}</div><div class="asist-stat-lbl">Programados</div></div>
+      <div class="asist-stat-box" style="border-color:#5DCAA5;background:#E1F5EE;"><div class="asist-stat-num" style="color:#0F6E56;">${asistieron}</div><div class="asist-stat-lbl" style="color:#0F6E56;">Asistieron</div></div>
+      <div class="asist-stat-box" style="border-color:#F0997B;background:#FAECE7;"><div class="asist-stat-num" style="color:#993C1D;">${ausentes}</div><div class="asist-stat-lbl" style="color:#993C1D;">Sin sesión</div></div>`;
+  }
+
+  // ─── CONSULTAS ────────────────────────────────────────────────
+  function updateCounts() {
+    document.getElementById('cnt-p').textContent=db.prestadores.length;
+    document.getElementById('cnt-pr').textContent=db.profesionales.length;
+    document.getElementById('cnt-pac').textContent=db.vinculos.length;
+  }
+
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtFecha(f) { if(!f||f==='—') return f||''; const [y,m,d]=f.split('-'); return d&&m&&y?`${d}/${m}/${y}`:f; }
+  function hoyISO() { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; }
+
+  // Estado de edición actual
+  let editContext = { type: null, idx: null };
+
+  function renderQ(type, q) {
+    q=(q||'').toLowerCase();
+    // Ocultar fichas al filtrar
+    ['detail-prestador','detail-profesional','detail-paciente'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden');});
+
+    if (type==='prestadores') {
+      const rows=db.prestadores.filter(r=>!q||r.nombre.toLowerCase().includes(q)||(r.dir||'').toLowerCase().includes(q));
+      document.getElementById('tbody-p').innerHTML=rows.length
+        ? rows.map(r=>{
+            const isFijo=r.nombre==='PARTICULAR'||r.nombre==='BPS';
+            const pc=r.nombre==='PARTICULAR'?'pill pill-p':r.nombre==='BPS'?'pill pill-b':'pill pill-c';
+            const pt=r.nombre==='PARTICULAR'?'Particular':r.nombre==='BPS'?'BPS':'Común';
+            const idx=db.prestadores.indexOf(r);
+            const tkTxt=isFijo?'—':(r.tickets?'Sí':'No');
+            return`<tr class="${isFijo?'':'clickable'}" ${isFijo?'':` onclick="abrirDetallePrestador(${idx})"`}><td>${esc(r.nombre)}</td><td><span class="${pc}">${pt}</span></td><td>${esc(tkTxt)}</td><td>${esc(r.dir||'—')}</td><td>${esc(r.contacto||'—')}</td><td>${esc(r.tel||'—')}</td><td>${esc(r.mail||'—')}</td></tr>`;
+          }).join('')
+        : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
+    } else if (type==='profesionales') {
+      const rows=db.profesionales.filter(r=>!q||r.nombre.toLowerCase().includes(q)||r.esp.toLowerCase().includes(q));
+      document.getElementById('tbody-pr').innerHTML=rows.length
+        ? rows.map(r=>{const idx=db.profesionales.indexOf(r);return`<tr class="clickable" onclick="abrirDetalleProfesional(${idx})"><td>${esc(r.nombre)}</td><td>${esc(r.esp)}</td><td>${esc(r.tel)}</td><td>${esc(r.mail)}</td></tr>`;}).join('')
+        : `<tr><td colspan="4" class="empty-state">Sin resultados</td></tr>`;
+    } else if (type==='pacientes') {
+      let rows=db.vinculos;
+      if (q) rows=rows.filter(v=>v.paciente.toLowerCase().includes(q)||v.profesional.toLowerCase().includes(q)||v.prestador.toLowerCase().includes(q));
+      const pac_map={};db.pacientes.forEach(p=>{pac_map[p.nombre]=p;});
+      document.getElementById('tbody-pac').innerHTML=rows.length
+        ? rows.map(v=>{
+            const pac=pac_map[v.paciente]||{};
+            const pc=v.tipo==='particular'?'pill-p':v.tipo==='bps'?'pill-b':'pill-c';
+            const vidx=db.vinculos.indexOf(v);
+            return`<tr class="clickable" onclick="abrirDetallePaciente('${v.paciente.replace(/'/g,"\\'")}',${vidx})"><td>${esc(v.paciente)}</td><td>${esc(pac.ci||'')}</td><td><span class="pill ${pc}">${esc(v.prestador)}</span></td><td>${esc(v.profesional)}</td><td>${esc(fmtHorarios(v))}</td><td>${fmtFecha(v.fechaInicio)}</td></tr>`;
+          }).join('')
+        : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
+    }
+  }
+
+  // ─── FICHAS DE DETALLE EN CONSULTAS ───────────────────────────
+  function abrirDetallePrestador(idx) {
+    const r=db.prestadores[idx];
+    const panel=document.getElementById('detail-prestador');
+    panel.innerHTML=`
+      <div class="detail-panel-title">${esc(r.nombre)}</div>
+      <div class="detail-grid">
+        <div class="detail-row"><span class="detail-lbl">Dirección</span><span class="detail-val">${esc(r.dir||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Contacto</span><span class="detail-val">${esc(r.contacto||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Teléfono</span><span class="detail-val">${esc(r.tel||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Mail</span><span class="detail-val">${esc(r.mail||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Opera con tickets</span><span class="detail-val">${r.tickets?'Sí':'No'}</span></div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn-sec" onclick="abrirEdicion('prestadores',${idx})">Modificar</button>
+        <button class="btn-danger" onclick="confirmarBaja('prestadores',${idx},'${r.nombre.replace(/'/g,"\\'")}')">Dar de baja</button>
+      </div>`;
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+
+  function abrirDetalleProfesional(idx) {
+    const r=db.profesionales[idx];
+    const panel=document.getElementById('detail-profesional');
+    const docs=db.documentos.filter(d=>d.profesional===r.nombre);
+    const docsHtml = docs.length
+      ? `<div class="sec-lbl" style="margin:1rem 0 8px;">Documentos</div>
+         <div class="tbl-wrap"><table>
+           <thead><tr><th style="width:50%">Nombre</th><th style="width:28%">Fecha</th><th style="width:22%">Archivo</th></tr></thead>
+           <tbody>${docs.map(d=>`<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')}</tbody>
+         </table></div>`
+      : `<div class="info-box" style="margin-top:1rem;">Este profesional aún no subió documentos.</div>`;
+    panel.innerHTML=`
+      <div class="detail-panel-title">${esc(r.nombre)}</div>
+      <div class="detail-grid">
+        <div class="detail-row"><span class="detail-lbl">Especialidad</span><span class="detail-val">${esc(r.esp||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Teléfono</span><span class="detail-val">${esc(r.tel||'—')}</span></div>
+        <div class="detail-row full"><span class="detail-lbl">Mail</span><span class="detail-val">${esc(r.mail||'—')}</span></div>
+      </div>
+      ${docsHtml}
+      <div class="detail-actions">
+        <button class="btn-sec" onclick="abrirEdicion('profesionales',${idx})">Modificar</button>
+        <button class="btn-danger" onclick="confirmarBaja('profesionales',${idx},'${r.nombre.replace(/'/g,"\\'")}')">Dar de baja</button>
+      </div>`;
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+
+  function abrirDetallePaciente(pacNombre, vidx) {
+    const pac=db.pacientes.find(p=>p.nombre===pacNombre)||{};
+    const vinc=db.vinculos[vidx];
+    const panel=document.getElementById('detail-paciente');
+    const tipoPill=vinc.tipo==='particular'?'pill-p':vinc.tipo==='bps'?'pill-b':'pill-c';
+    const tipoLabel=vinc.tipo==='particular'?'Particular':vinc.tipo==='bps'?'BPS':'Prestador';
+    const pacIdx=db.pacientes.findIndex(p=>p.nombre===pacNombre);
+    panel.innerHTML=`
+      <div class="detail-panel-title">${esc(pacNombre)}</div>
+      <div class="detail-grid">
+        <div class="detail-row"><span class="detail-lbl">Cédula</span><span class="detail-val">${esc(pac.ci||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Fecha de nacimiento</span><span class="detail-val">${fmtFechaNac(pac.fechaNac||'')}${pac.fechaNac?' · '+fmtEdad(pac.fechaNac):''}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Tutor/Referente</span><span class="detail-val">${esc(pac.tutor||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Tel. referente</span><span class="detail-val">${esc(pac.tutorTel||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Mail referente</span><span class="detail-val">${esc(pac.tutorMail||'—')}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Profesional</span><span class="detail-val">${esc(vinc.profesional)}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Prestador</span><span class="detail-val"><span class="pill ${tipoPill}">${tipoLabel} — ${esc(vinc.prestador)}</span></span></div>
+        <div class="detail-row"><span class="detail-lbl">Día y horario</span><span class="detail-val">${esc(fmtHorarios(vinc))}</span></div>
+        <div class="detail-row"><span class="detail-lbl">Inicio del vínculo</span><span class="detail-val">${fmtFecha(vinc.fechaInicio)||'—'}</span></div>
+      </div>
+      <div class="sec-lbl" style="margin:1.25rem 0 8px;">Documentos del paciente</div>
+      <div class="grid2" style="margin-bottom:0.25rem;">
+        <div class="fg full"><label>Nombre del documento</label><input id="pdoc-nombre" type="text" placeholder="Ej. Estudio neurológico, Derivación…"></div>
+        <div class="fg full"><label>Archivo (PDF u otro)</label><input id="pdoc-file" type="file" accept=".pdf,application/pdf,image/*"></div>
+      </div>
+      <span class="field-err" id="err-pdoc-nombre">Ingresá un nombre para el documento.</span>
+      <span class="field-err" id="err-pdoc-file">Seleccioná un archivo para subir.</span>
+      <div style="display:flex;gap:8px;margin:8px 0 4px;">
+        <button class="btn-pri purple" id="btn-pdoc-subir" onclick="subirDocPaciente('${pacNombre.replace(/'/g,"\\'")}')">Subir documento</button>
+      </div>
+      <div id="pdoc-ok" class="ok-msg"><span>✓</span><span>Documento subido correctamente.</span></div>
+      <div id="pdoc-err" class="baja-notice" style="margin-top:0.5rem;"></div>
+      <div class="tbl-wrap" style="margin-top:10px;"><table>
+        <thead><tr><th style="width:45%">Nombre</th><th style="width:30%">Fecha</th><th style="width:25%">Archivo</th></tr></thead>
+        <tbody id="tbody-docs-pac"></tbody>
+      </table></div>
+      <div class="detail-actions" style="margin-top:1.25rem;">
+        <button class="btn-sec" onclick="abrirEdicion('pacientes',${pacIdx},${vidx})">Modificar paciente</button>
+        <button class="btn-sec" onclick="abrirEdicionVinculo(${vidx})">Modificar vínculo</button>
+        <button class="btn-danger" onclick="confirmarBaja('vinculos',${vidx},'${pacNombre.replace(/'/g,"\\'")}')">Dar de baja vínculo</button>
+      </div>`;
+    panel.classList.remove('hidden');
+    renderDocsPac(pacNombre);
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+
+  // ─── DOCUMENTOS DEL PACIENTE ──────────────────────────────────
+  function renderDocsPac(pacNombre) {
+    const docs=db.docsPacientes.filter(d=>d.paciente===pacNombre);
+    const tb=document.getElementById('tbody-docs-pac');
+    if (!tb) return;
+    tb.innerHTML = docs.length
+      ? docs.map(d=>`<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin documentos cargados</td></tr>`;
+  }
+  async function subirDocPaciente(pacNombre) {
+    let ok=true;
+    const nombre=getVal('pdoc-nombre');
+    const fileInput=document.getElementById('pdoc-file');
+    const file=fileInput.files&&fileInput.files[0];
+    if(!nombre){showFErr('pdoc-nombre','Ingresá un nombre para el documento.');ok=false;}else clearFErr('pdoc-nombre');
+    if(!file){showFErr('pdoc-file','Seleccioná un archivo para subir.');ok=false;}else clearFErr('pdoc-file');
+    if(!ok) return;
+    const errBox=document.getElementById('pdoc-err'); errBox.classList.remove('show');
+    const btn=document.getElementById('btn-pdoc-subir');
+    btn.disabled=true; btn.textContent='Subiendo…';
+    setSyncLoading('Subiendo a Drive…');
+    try {
+      const folderId=await driveCarpetaPaciente(pacNombre);
+      const subido=await driveSubirArchivo(file, folderId);
+      const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
+      const doc={paciente:pacNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      db.docsPacientes.push(doc);
+      await guardarDocPacienteSheet(doc);
+      setSyncOk();
+      document.getElementById('pdoc-ok').classList.add('show');
+      renderDocsPac(pacNombre);
+      document.getElementById('pdoc-nombre').value='';
+      fileInput.value='';
+    } catch(e) {
+      console.error(e); setSyncErr();
+      errBox.textContent='No se pudo subir el documento. Verificá la conexión y volvé a intentar.';
+      errBox.classList.add('show');
+    }
+    btn.disabled=false; btn.textContent='Subir documento';
+  }
+
+  // ─── MODAL DE CONFIRMACIÓN DE BAJA ────────────────────────────
+  let bajaCallback = null;
+  function confirmarBaja(type, idx, nombre) {
+    const modal=document.getElementById('modal-baja');
+    const bodyMap = {
+      prestadores: `¿Dar de baja al prestador <strong>${esc(nombre)}</strong>? Esta acción no se puede deshacer.`,
+      profesionales: `¿Dar de baja al profesional <strong>${esc(nombre)}</strong>? Esta acción no se puede deshacer.`,
+      vinculos: `¿Dar de baja el vínculo de <strong>${esc(nombre)}</strong>? Esta acción no se puede deshacer.`,
+    };
+    document.getElementById('modal-baja-body').innerHTML=bodyMap[type]||'¿Confirmar baja?';
+    bajaCallback = () => ejecutarBaja(type, idx);
+    document.getElementById('modal-baja-confirm').onclick = () => { cerrarModal(); bajaCallback(); };
+    modal.classList.remove('hidden');
+  }
+  function cerrarModal() { document.getElementById('modal-baja').classList.add('hidden'); bajaCallback=null; }
+
+  async function ejecutarBaja(type, idx) {
+    if (type==='prestadores') {
+      db.prestadores.splice(idx,1);
+      setSyncLoading('Guardando…');
+      try { await guardarPrestadores(); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('prestadores',''); updateCounts();
+    } else if (type==='profesionales') {
+      db.profesionales.splice(idx,1);
+      renderProfList();
+      setSyncLoading('Guardando…');
+      try { await guardarProfesionales(); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('profesionales',''); updateCounts();
+    } else if (type==='vinculos') {
+      db.vinculos.splice(idx,1);
+      setSyncLoading('Guardando…');
+      try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('pacientes',''); updateCounts();
+    }
+    populateAllSelects();
+  }
+
+  // ─── PANTALLA DE EDICIÓN ───────────────────────────────────────
+  let editVinculoIdx = null;
+
+  function abrirEdicion(type, idx, vidx) {
+    editContext = { type, idx };
+    editVinculoIdx = vidx !== undefined ? vidx : null;
+    const titles = { prestadores:'Modificar prestador', profesionales:'Modificar profesional', pacientes:'Modificar paciente' };
+    document.getElementById('edit-title').textContent = titles[type];
+    document.getElementById('edit-ok').classList.remove('show');
+    const btn = document.getElementById('edit-save-btn');
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+    const body = document.getElementById('edit-form-body');
+
+    if (type==='prestadores') {
+      const r=db.prestadores[idx];
+      body.innerHTML=`
+        <div class="grid2">
+          <div class="fg full"><label>Nombre / Razón social</label><input id="ep-nombre" type="text" value="${esc(r.nombre)}" oninput="clearFErr('ep-nombre')"><span class="field-err" id="err-ep-nombre">Campo requerido.</span></div>
+          <div class="fg full"><label>Dirección</label><input id="ep-dir" type="text" value="${esc(r.dir||'')}"></div>
+          <div class="fg"><label>Persona de contacto</label><input id="ep-contacto" type="text" value="${esc(r.contacto||'')}"></div>
+          <div class="fg"><label>Teléfono</label><input id="ep-tel" type="tel" value="${esc(r.tel||'')}"></div>
+          <div class="fg full"><label>Mail de contacto</label><input id="ep-mail" type="email" value="${esc(r.mail||'')}"></div>
+        </div>
+        <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-top:4px;">
+          <input id="ep-tickets" type="checkbox" style="width:auto;" ${r.tickets?'checked':''}>
+          <label for="ep-tickets" style="margin:0;">Este prestador opera con tickets (rendición manual de comprobantes)</label>
+        </div>`;
+    } else if (type==='profesionales') {
+      const r=db.profesionales[idx];
+      body.innerHTML=`
+        <div class="grid2">
+          <div class="fg full"><label>Nombre completo</label><input id="epr-nombre" type="text" value="${esc(r.nombre)}" oninput="clearFErr('epr-nombre')"><span class="field-err" id="err-epr-nombre">Campo requerido.</span></div>
+          <div class="fg"><label>Especialidad</label><input id="epr-esp" type="text" value="${esc(r.esp||'')}"></div>
+          <div class="fg"><label>Teléfono</label><input id="epr-tel" type="tel" value="${esc(r.tel||'')}"></div>
+          <div class="fg full"><label>Mail</label><input id="epr-mail" type="email" value="${esc(r.mail||'')}"></div>
+        </div>`;
+    } else if (type==='pacientes') {
+      const r=db.pacientes[idx];
+      body.innerHTML=`
+        <div class="sec-lbl">Datos del paciente</div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre del paciente</label><input id="epac-nombre" type="text" value="${esc(r.nombre)}" oninput="clearFErr('epac-nombre')"><span class="field-err" id="err-epac-nombre">Campo requerido.</span></div>
+          <div class="fg"><label>Número de cédula</label><input id="epac-ci" type="text" value="${esc(r.ci||'')}"></div>
+          <div class="fg"><label>Fecha de nacimiento</label><input id="epac-fecha-nac" type="date" value="${esc(r.fechaNac||'')}"></div>
+        </div>
+        <hr class="divider">
+        <div class="sec-lbl">Referente familiar</div>
+        <div class="grid2">
+          <div class="fg full"><label>Nombre del padre, madre o tutor</label><input id="epac-tutor" type="text" value="${esc(r.tutor||'')}" oninput="clearFErr('epac-tutor')"><span class="field-err" id="err-epac-tutor">Campo requerido.</span></div>
+          <div class="fg"><label>Teléfono del referente</label><input id="epac-tutor-tel" type="tel" value="${esc(r.tutorTel||'')}"></div>
+          <div class="fg"><label>Mail del referente</label><input id="epac-tutor-mail" type="email" value="${esc(r.tutorMail||'')}"></div>
+        </div>`;
+    }
+    goScreen('screen-edit');
+  }
+
+  function abrirEdicionVinculo(vidx) {
+    editContext = { type:'vinculos', idx: vidx };
+    editVinculoIdx = vidx;
+    document.getElementById('edit-title').textContent = 'Modificar vínculo';
+    document.getElementById('edit-ok').classList.remove('show');
+    const btn = document.getElementById('edit-save-btn');
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+    const body = document.getElementById('edit-form-body');
+    body.innerHTML = '';
+    const card = buildVinculoFields('vedit', db.vinculos[vidx], false, null);
+    body.appendChild(card);
+    goScreen('screen-edit');
+  }
+
+  function volverDeEdicion() {
+    goAdmin();
+    const consultasTab = document.getElementById('tab-consultas');
+    if (consultasTab) switchMain('consultas', consultasTab);
+    const tabMap = { prestadores:0, profesionales:1, pacientes:2, vinculos:2 };
+    const type = editContext.type;
+    const subIdx = tabMap[type] ?? 0;
+    const subTabs = document.querySelectorAll('#main-consultas .sub-tab');
+    if (subTabs[subIdx]) subTabs[subIdx].click();
+  }
+
+  async function guardarEdicion() {
+    const btn = document.getElementById('edit-save-btn');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    const { type, idx } = editContext;
+    try {
+      if (type==='prestadores') {
+        const nombre=document.getElementById('ep-nombre').value.trim();
+        if(!nombre){showFErr('ep-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
+        db.prestadores[idx]={...db.prestadores[idx],nombre,dir:document.getElementById('ep-dir').value.trim(),contacto:document.getElementById('ep-contacto').value.trim(),tel:document.getElementById('ep-tel').value.trim(),mail:document.getElementById('ep-mail').value.trim(),tickets:document.getElementById('ep-tickets').checked};
+        await guardarPrestadores();
+      } else if (type==='profesionales') {
+        const nombre=document.getElementById('epr-nombre').value.trim();
+        if(!nombre){showFErr('epr-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
+        db.profesionales[idx]={...db.profesionales[idx],nombre,esp:document.getElementById('epr-esp').value.trim(),tel:document.getElementById('epr-tel').value.trim(),mail:document.getElementById('epr-mail').value.trim()};
+        renderProfList();
+        await guardarProfesionales();
+      } else if (type==='pacientes') {
+        const nombre=document.getElementById('epac-nombre').value.trim();
+        if(!nombre){showFErr('epac-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
+        db.pacientes[idx]={nombre,ci:document.getElementById('epac-ci').value.trim(),fechaNac:document.getElementById('epac-fecha-nac').value.trim(),tutor:document.getElementById('epac-tutor').value.trim(),tutorTel:document.getElementById('epac-tutor-tel').value.trim(),tutorMail:document.getElementById('epac-tutor-mail').value.trim()};
+        await guardarPacientes();
+      } else if (type==='vinculos') {
+        const v = readVinculoFields('vedit');
+        if (!v) { btn.disabled=false; btn.textContent='Guardar cambios'; return; }
+        const prev = db.vinculos[editVinculoIdx];
+        db.vinculos[editVinculoIdx] = { paciente: prev.paciente, ...v, estado: prev.estado||'activo', fechaCierre: prev.fechaCierre||'' };
+        await guardarVinculos();
+      }
+      setSyncOk(); populateAllSelects();
+      document.getElementById('edit-ok').classList.add('show');
+      setTimeout(()=>volverDeEdicion(), 1200);
+    } catch(e) {
+      setSyncErr('Error al guardar');
+      btn.disabled=false; btn.textContent='Guardar cambios';
+    }
+  }
+
+  // ─── EDAD ──────────────────────────────────────────────────────
+  function calcularEdad(fechaNac) {
+    if (!fechaNac) return null;
+    const hoy = new Date();
+    const nac = new Date(fechaNac + 'T12:00:00');
+    let edad = hoy.getFullYear() - nac.getFullYear();
+    const m = hoy.getMonth() - nac.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
+    return edad;
+  }
+  function fmtEdad(fechaNac) {
+    const e = calcularEdad(fechaNac);
+    if (e === null) return '—';
+    return e + ' año' + (e === 1 ? '' : 's');
+  }
+  function fmtFechaNac(f) {
+    if (!f) return '—';
+    const [y,m,d] = f.split('-');
+    return d && m && y ? `${d}/${m}/${y}` : f;
+  }
+
+  // ─── HELPERS ──────────────────────────────────────────────────
+  function getVal(id) { const el=document.getElementById(id); return el?el.value.trim():''; }
+  function showFErr(id,msg) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.add('err'); if(err){if(msg)err.textContent=msg;err.classList.add('show');} }
+  function clearFErr(id) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.remove('err'); if(err)err.classList.remove('show'); }
+  function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  // ─── INIT ─────────────────────────────────────────────────────
+  window.gapiLoaded=gapiLoaded;
+  window.gisLoaded=gisLoaded;
+</script>
+</body>
+</html>
