@@ -554,6 +554,9 @@
           <div class="fg"><label>Profesional</label>
             <select id="porprof-sel" onchange="renderPorProf()"><option value="">— Seleccionar —</option></select>
           </div>
+          <div class="fg"><label>Prestador</label>
+            <select id="porprof-prest-sel" onchange="renderPorProf()"><option value="">— Todos —</option></select>
+          </div>
         </div>
         <div id="porprof-result"></div>
       </div>
@@ -1875,14 +1878,21 @@
     sel.innerHTML='<option value="">— Seleccionar —</option>';
     db.profesionales.forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
     sel.value=cur||'';
+    const prestSel=document.getElementById('porprof-prest-sel');
+    const curPrest=prestSel.value;
+    prestSel.innerHTML='<option value="">— Todos —</option>';
+    db.prestadores.forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
+    prestSel.value=curPrest||'';
     if (sel.value) renderPorProf(); else document.getElementById('porprof-result').innerHTML='';
   }
 
   function renderPorProf() {
     const prof=document.getElementById('porprof-sel').value;
+    const prestFiltro=document.getElementById('porprof-prest-sel').value;
     const cont=document.getElementById('porprof-result');
     if (!prof) { cont.innerHTML=''; return; }
-    const vincs=db.vinculos.map((v,i)=>({v,i})).filter(o=>o.v.profesional===prof);
+    let vincs=db.vinculos.map((v,i)=>({v,i})).filter(o=>o.v.profesional===prof);
+    if (prestFiltro) vincs=vincs.filter(o=>o.v.prestador===prestFiltro);
     const activos=vincs.filter(o=>o.v.estado!=='cerrado');
     const cerrados=vincs.filter(o=>o.v.estado==='cerrado');
 
@@ -1891,21 +1901,22 @@
       const pac=db.pacientes.find(p=>p.nombre===v.paciente);
       const ci=pac?fmtIdent(pac.ci):'—';
       const pc=v.tipo==='particular'?'pill-p':v.tipo==='bps'?'pill-b':'pill-c';
+      const monto=v.tipo==='particular'?('$'+esc(String(v.monto||'—'))):'—';
       const accion=esActivo
         ? `<button class="btn-vinculo-action" onclick="abrirReasignacion(${o.i})">Reasignar</button>`
         : (v.fechaCierre?`<span class="pac-card-val" style="font-size:12px;">Cerrado ${fmtFecha(v.fechaCierre)}</span>`:'<span class="pac-card-val" style="font-size:12px;">Cerrado</span>');
-      return `<tr><td>${esc(v.paciente)}</td><td>${esc(ci)}</td><td><span class="pill ${pc}">${esc(v.prestador)}</span></td><td>${esc(fmtHorarios(v))}</td><td>${fmtFecha(v.fechaInicio)}</td><td style="text-align:right;">${accion}</td></tr>`;
+      return `<tr><td>${esc(v.paciente)}</td><td>${esc(ci)}</td><td><span class="pill ${pc}">${esc(v.prestador)}</span></td><td>${esc(fmtHorarios(v))}</td><td>${fmtFecha(v.fechaInicio)}</td><td>${monto}</td><td style="text-align:right;">${accion}</td></tr>`;
     };
 
     let html=`<div class="sec-lbl" style="margin:1.25rem 0 10px;">Vínculos activos <span class="count-badge">${activos.length}</span></div>`;
     html+=`<div class="tbl-wrap"><table>
-      <thead><tr><th style="width:24%">Paciente</th><th style="width:14%">Identificación</th><th style="width:18%">Prestador</th><th style="width:22%">Día y horario</th><th style="width:12%">Inicio</th><th style="width:10%"></th></tr></thead>
-      <tbody>${activos.length?activos.map(o=>fila(o,true)).join(''):`<tr><td colspan="6" class="empty-state">Sin vínculos activos</td></tr>`}</tbody>
+      <thead><tr><th style="width:20%">Paciente</th><th style="width:13%">Identificación</th><th style="width:16%">Prestador</th><th style="width:19%">Día y horario</th><th style="width:11%">Inicio</th><th style="width:11%">Monto</th><th style="width:10%"></th></tr></thead>
+      <tbody>${activos.length?activos.map(o=>fila(o,true)).join(''):`<tr><td colspan="7" class="empty-state">Sin vínculos activos</td></tr>`}</tbody>
     </table></div>`;
     html+=`<div class="sec-lbl" style="margin:1.5rem 0 10px;">Vínculos cerrados <span class="count-badge">${cerrados.length}</span></div>`;
     html+=`<div class="tbl-wrap"><table>
-      <thead><tr><th style="width:24%">Paciente</th><th style="width:14%">Identificación</th><th style="width:18%">Prestador</th><th style="width:22%">Día y horario</th><th style="width:12%">Inicio</th><th style="width:10%"></th></tr></thead>
-      <tbody>${cerrados.length?cerrados.map(o=>fila(o,false)).join(''):`<tr><td colspan="6" class="empty-state">Sin vínculos cerrados</td></tr>`}</tbody>
+      <thead><tr><th style="width:20%">Paciente</th><th style="width:13%">Identificación</th><th style="width:16%">Prestador</th><th style="width:19%">Día y horario</th><th style="width:11%">Inicio</th><th style="width:11%">Monto</th><th style="width:10%"></th></tr></thead>
+      <tbody>${cerrados.length?cerrados.map(o=>fila(o,false)).join(''):`<tr><td colspan="7" class="empty-state">Sin vínculos cerrados</td></tr>`}</tbody>
     </table></div>`;
     cont.innerHTML=html;
   }
