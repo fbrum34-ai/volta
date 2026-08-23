@@ -632,7 +632,7 @@
       <div class="home-card" onclick="goDocumentos()">
         <div class="home-card-icon" style="background:#EEEDFE;color:#534AB7;font-size:18px;">⎙</div>
         <div class="home-card-title">Mis documentos</div>
-        <div class="home-card-sub">Subir título y certificados (PDF)</div>
+        <div class="home-card-sub">Ver título y certificados cargados</div>
       </div>
       <div class="home-card" onclick="goReporteHonorarios()">
         <div class="home-card-icon" style="background:#FBF3D9;color:#8A6D00;font-size:18px;">$</div>
@@ -658,28 +658,15 @@
     <div class="panel-sub" id="rep-vacio" style="margin-top:1rem;display:none;">No hay sesiones registradas para este profesional en el mes seleccionado.</div>
   </div>
 
-  <!-- DOCUMENTOS DEL PROFESIONAL -->
+  <!-- DOCUMENTOS DEL PROFESIONAL (solo lectura) -->
   <div id="screen-documentos" class="screen">
     <button class="btn-back" onclick="goScreen('screen-profmenu')">← Menú profesional</button>
     <div class="panel-title">Mis documentos</div>
     <div class="panel-sub" id="doc-prof-sub"></div>
-    <div class="grid2" style="margin-bottom:0.5rem;">
-      <div class="fg full"><label>Nombre del documento</label><input id="doc-nombre" type="text" placeholder="Ej. Título, Certificado de habilitación…"></div>
-      <div class="fg full"><label>Archivo (PDF u otro)</label><input id="doc-file" type="file" accept=".pdf,application/pdf,image/*"></div>
-    </div>
-    <span class="field-err" id="err-doc-nombre">Ingresá un nombre para el documento.</span>
-    <span class="field-err" id="err-doc-file">Seleccioná un archivo para subir.</span>
-    <div class="submit-row">
-      <button class="btn-sec" onclick="resetDocForm()">Limpiar</button>
-      <button class="btn-pri purple" id="btn-doc-subir" onclick="subirDocumento()">Subir documento</button>
-    </div>
-    <div id="doc-ok" class="ok-msg"><span>✓</span><span>Documento subido correctamente.</span></div>
-    <div id="doc-err" class="baja-notice" style="margin-top:1rem;"></div>
-    <hr class="divider">
-    <div class="sec-lbl" style="margin-bottom:12px;">Documentos subidos</div>
+    <div class="info-box" style="margin:1rem 0;">Si querés agregar un documento nuevo, solicitalo en administración.</div>
     <div class="tbl-wrap"><table>
       <thead><tr><th style="width:45%">Nombre</th><th style="width:30%">Fecha</th><th style="width:25%">Archivo</th></tr></thead>
-      <tbody id="tbody-docs-prof"></tbody>
+      <tbody id="tbody-docs-prof-ro"></tbody>
     </table></div>
   </div>
 
@@ -828,7 +815,7 @@
 <script>
   // ─── CONFIG ───────────────────────────────────────────────────
   const CLIENT_ID = '52678653810-dlk885elq27jkr93ikt0en5fnhm3o872.apps.googleusercontent.com';
-  const SHEET_ID  = '1CJ0I-XxqgnCe0_0y9QjL-h8-OLowwge55_Sqi_9-JfQ';
+  const SHEET_ID  = '13CEtrWwkI_gXVN6v5Ozfe_Qi-XHk4gTl9aPhvCZUAj4';
   const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
   const DISCOVERY = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
   const DISCOVERY_DRIVE = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
@@ -1623,12 +1610,18 @@
     goScreen('screen-profmenu');
   }
 
-  // ─── DOCUMENTOS DEL PROFESIONAL ───────────────────────────────
+  // ─── DOCUMENTOS DEL PROFESIONAL (solo lectura) ────────────────
   function goDocumentos() {
     document.getElementById('doc-prof-sub').textContent = profesionalActivo.nombre + (profesionalActivo.esp ? ' — '+profesionalActivo.esp : '');
-    resetDocForm();
-    renderDocsProf();
+    renderDocsProfRO();
     goScreen('screen-documentos');
+  }
+  function renderDocsProfRO() {
+    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre);
+    const tb = document.getElementById('tbody-docs-prof-ro');
+    tb.innerHTML = docs.length
+      ? docs.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin documentos cargados</td></tr>`;
   }
 
   // ─── REPORTE DE HONORARIOS ──────────────────────────────────────
@@ -1695,53 +1688,6 @@
     const nombreArchivo = `Liquidacion_${profesionalActivo.nombre.replace(/\s+/g,'_')}_${mesISO}.xlsx`;
     XLSX.writeFile(wb, nombreArchivo);
   }
-  function renderDocsProf() {
-    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre);
-    const tb = document.getElementById('tbody-docs-prof');
-    tb.innerHTML = docs.length
-      ? docs.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
-      : `<tr><td colspan="3" class="empty-state">Sin documentos cargados</td></tr>`;
-  }
-  function resetDocForm() {
-    const n=document.getElementById('doc-nombre'); if(n){n.value='';n.classList.remove('err');}
-    const f=document.getElementById('doc-file'); if(f){f.value='';f.classList.remove('err');}
-    clearFErr('doc-nombre'); clearFErr('doc-file');
-    document.getElementById('doc-ok').classList.remove('show');
-    document.getElementById('doc-err').classList.remove('show');
-  }
-  async function subirDocumento() {
-    let ok=true;
-    const nombre=getVal('doc-nombre');
-    const fileInput=document.getElementById('doc-file');
-    const file=fileInput.files&&fileInput.files[0];
-    if(!nombre){showFErr('doc-nombre','Ingresá un nombre para el documento.');ok=false;}else clearFErr('doc-nombre');
-    if(!file){showFErr('doc-file','Seleccioná un archivo para subir.');ok=false;}else clearFErr('doc-file');
-    if(!ok) return;
-    const errBox=document.getElementById('doc-err'); errBox.classList.remove('show');
-    const btn=document.getElementById('btn-doc-subir');
-    btn.disabled=true; btn.textContent='Subiendo…';
-    setSyncLoading('Subiendo a Drive…');
-    try {
-      const folderId = await driveCarpetaProfesional(profesionalActivo.nombre);
-      const subido = await driveSubirArchivo(file, folderId);
-      const link = subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
-      const doc = { profesional:profesionalActivo.nombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10) };
-      db.documentos.push(doc);
-      await guardarDocumentoSheet(doc);
-      setSyncOk();
-      document.getElementById('doc-ok').classList.add('show');
-      renderDocsProf();
-      document.getElementById('doc-nombre').value='';
-      fileInput.value='';
-    } catch(e) {
-      console.error(e);
-      setSyncErr();
-      errBox.textContent='No se pudo subir el documento. Verificá la conexión y volvé a intentar.';
-      errBox.classList.add('show');
-    }
-    btn.disabled=false; btn.textContent='Subir documento';
-  }
-
   // ─── SESIÓN ───────────────────────────────────────────────────
   let sesionOrigen = 'menu';
 
@@ -2315,14 +2261,6 @@
   function abrirDetalleProfesional(idx) {
     const r=db.profesionales[idx];
     const panel=document.getElementById('detail-profesional');
-    const docs=db.documentos.filter(d=>d.profesional===r.nombre);
-    const docsHtml = docs.length
-      ? `<div class="sec-lbl" style="margin:1rem 0 8px;">Documentos</div>
-         <div class="tbl-wrap"><table>
-           <thead><tr><th style="width:50%">Nombre</th><th style="width:28%">Fecha</th><th style="width:22%">Archivo</th></tr></thead>
-           <tbody>${docs.map(d=>`<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')}</tbody>
-         </table></div>`
-      : `<div class="info-box" style="margin-top:1rem;">Este profesional aún no subió documentos.</div>`;
     panel.innerHTML=`
       <div class="detail-panel-title">${esc(r.nombre)}</div>
       <div class="detail-grid">
@@ -2330,13 +2268,70 @@
         <div class="detail-row"><span class="detail-lbl">Teléfono</span><span class="detail-val">${esc(r.tel||'—')}</span></div>
         <div class="detail-row full"><span class="detail-lbl">Mail</span><span class="detail-val">${esc(r.mail||'—')}</span></div>
       </div>
-      ${docsHtml}
-      <div class="detail-actions">
+      <div class="sec-lbl" style="margin:1.25rem 0 8px;">Documentos del profesional</div>
+      <div class="grid2" style="margin-bottom:0.25rem;">
+        <div class="fg full"><label>Nombre del documento</label><input id="docp-nombre" type="text" placeholder="Ej. Título, Certificado de habilitación…"></div>
+        <div class="fg full"><label>Archivo (PDF u otro)</label><input id="docp-file" type="file" accept=".pdf,application/pdf,image/*"></div>
+      </div>
+      <span class="field-err" id="err-docp-nombre">Ingresá un nombre para el documento.</span>
+      <span class="field-err" id="err-docp-file">Seleccioná un archivo para subir.</span>
+      <div style="display:flex;gap:8px;margin:8px 0 4px;">
+        <button class="btn-pri purple" id="btn-docp-subir" onclick="subirDocProf('${r.nombre.replace(/'/g,"\\'")}')">Subir documento</button>
+      </div>
+      <div id="docp-ok" class="ok-msg"><span>✓</span><span>Documento subido correctamente.</span></div>
+      <div id="docp-err" class="baja-notice" style="margin-top:0.5rem;"></div>
+      <div class="tbl-wrap" style="margin-top:10px;"><table>
+        <thead><tr><th style="width:45%">Nombre</th><th style="width:30%">Fecha</th><th style="width:25%">Archivo</th></tr></thead>
+        <tbody id="tbody-docs-prof"></tbody>
+      </table></div>
+      <div class="detail-actions" style="margin-top:1.25rem;">
         <button class="btn-sec" onclick="abrirEdicion('profesionales',${idx})">Modificar</button>
         <button class="btn-danger" onclick="confirmarBaja('profesionales',${idx},'${r.nombre.replace(/'/g,"\\'")}')">Dar de baja</button>
       </div>`;
     panel.classList.remove('hidden');
+    renderDocsProf(r.nombre);
     panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+
+  // ─── DOCUMENTOS DEL PROFESIONAL (admin) ───────────────────────
+  function renderDocsProf(profNombre) {
+    const docs=db.documentos.filter(d=>d.profesional===profNombre);
+    const tb=document.getElementById('tbody-docs-prof');
+    if (!tb) return;
+    tb.innerHTML = docs.length
+      ? docs.map(d=>`<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="empty-state">Sin documentos cargados</td></tr>`;
+  }
+  async function subirDocProf(profNombre) {
+    let ok=true;
+    const nombre=getVal('docp-nombre');
+    const fileInput=document.getElementById('docp-file');
+    const file=fileInput.files&&fileInput.files[0];
+    if(!nombre){showFErr('docp-nombre','Ingresá un nombre para el documento.');ok=false;}else clearFErr('docp-nombre');
+    if(!file){showFErr('docp-file','Seleccioná un archivo para subir.');ok=false;}else clearFErr('docp-file');
+    if(!ok) return;
+    const errBox=document.getElementById('docp-err'); errBox.classList.remove('show');
+    const btn=document.getElementById('btn-docp-subir');
+    btn.disabled=true; btn.textContent='Subiendo…';
+    setSyncLoading('Subiendo a Drive…');
+    try {
+      const folderId=await driveCarpetaProfesional(profNombre);
+      const subido=await driveSubirArchivo(file, folderId);
+      const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
+      const doc={profesional:profNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      db.documentos.push(doc);
+      await guardarDocumentoSheet(doc);
+      setSyncOk();
+      document.getElementById('docp-ok').classList.add('show');
+      renderDocsProf(profNombre);
+      document.getElementById('docp-nombre').value='';
+      fileInput.value='';
+    } catch(e) {
+      console.error(e); setSyncErr();
+      errBox.textContent='No se pudo subir el documento. Verificá la conexión y volvé a intentar.';
+      errBox.classList.add('show');
+    }
+    btn.disabled=false; btn.textContent='Subir documento';
   }
 
   function abrirDetallePaciente(pacNombre, vidx) {
@@ -2438,7 +2433,7 @@
     };
     document.getElementById('modal-baja-body').innerHTML=bodyMap[type]||'¿Confirmar baja?';
     bajaCallback = () => ejecutarBaja(type, idx);
-    document.getElementById('modal-baja-confirm').onclick = () => { cerrarModal(); bajaCallback(); };
+    document.getElementById('modal-baja-confirm').onclick = () => { const cb=bajaCallback; cerrarModal(); if (cb) cb(); };
     modal.classList.remove('hidden');
   }
   function cerrarModal() { document.getElementById('modal-baja').classList.add('hidden'); bajaCallback=null; }
