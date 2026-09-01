@@ -859,6 +859,7 @@
     const el = document.getElementById('auth-data-err');
     el.textContent = 'Parece que abriste este link dentro de otra app (WhatsApp, Instagram, etc.), y Google no permite iniciar sesión ahí por seguridad. Tocá el botón "⋮" o "Abrir en el navegador" (o mantené presionado el link y elegí esa opción) para abrirlo en Chrome, Safari u otro navegador normal.';
     el.classList.add('show');
+    el.dataset.kind = 'webview';
   }
 
   // ─── GOOGLE AUTH ──────────────────────────────────────────────
@@ -887,6 +888,13 @@
     const btn = document.getElementById('btn-login');
     btn.disabled = false;
     document.getElementById('btn-login-txt').textContent = 'Ingresar con Google';
+    // Si el aviso mostrado era el de "está tardando" (no el de "estás en WhatsApp/Instagram",
+    // que sigue siendo válido aunque el script haya cargado, porque el login en sí va a
+    // seguir bloqueado ahí), lo sacamos porque ya se resolvió solo.
+    const errEl = document.getElementById('auth-data-err');
+    if (errEl.classList.contains('show') && errEl.dataset.kind === 'timeout') {
+      errEl.classList.remove('show'); errEl.innerHTML = ''; delete errEl.dataset.kind;
+    }
     const saved = sessionStorage.getItem('volta_token');
     if (saved) {
       gapi.client.setToken({ access_token: saved });
@@ -898,16 +906,19 @@
       });
     }
   }
-  // Si a los 12s Google todavía no cargó (red muy lenta o bloqueada), avisar en vez de
-  // dejar el botón "Cargando…" para siempre sin explicación.
+  // Si a los 25s Google todavía no cargó (red muy lenta o bloqueada), avisar en vez de
+  // dejar el botón "Cargando…" para siempre sin explicación. 25s (no 12s) porque abrir la
+  // PWA instalada desde cero (proceso de Chrome recién arrancando) tarda más que una
+  // pestaña normal en un Chrome que ya está corriendo.
   const authInitTimeout = setTimeout(() => {
     if (gapiReady && gisReady) return;
     document.getElementById('btn-login-txt').textContent = 'Ingresar con Google';
     document.getElementById('btn-login').disabled = false;
     const el = document.getElementById('auth-data-err');
-    el.textContent = 'El inicio de sesión de Google está tardando en cargar. Puede ser tu conexión, que algo (antivirus, firewall de red) esté bloqueando accounts.google.com, o que estés dentro del navegador de otra app (WhatsApp, Instagram, etc.) — en ese caso, abrí este link en Chrome o Safari directamente. Podés intentar igual, o revisar y recargar la página.';
+    el.innerHTML = 'El inicio de sesión de Google está tardando en cargar. Puede ser tu conexión, que algo (antivirus, firewall de red) esté bloqueando accounts.google.com, o que estés dentro del navegador de otra app (WhatsApp, Instagram, etc.) — en ese caso, abrí este link en Chrome o Safari directamente.<br><br><button class="btn-sec" onclick="location.reload()" style="font-size:12px;padding:6px 14px;">Reintentar</button>';
     el.classList.add('show');
-  }, 12000);
+    el.dataset.kind = 'timeout';
+  }, 25000);
   function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
   function showAuthErr() { document.getElementById('auth-err').classList.add('show'); }
 
