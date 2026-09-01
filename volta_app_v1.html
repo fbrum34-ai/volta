@@ -47,6 +47,7 @@
     .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2.5rem; }
     .brand-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 500; letter-spacing: -0.5px; }
     .brand-tag { font-size: 11px; color: var(--text-secondary); letter-spacing: 1.5px; text-transform: uppercase; }
+    .brand-version { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-left: 6px; }
     .screen { display: none; } .screen.active { display: block; }
     .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 1rem; }
     @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
@@ -257,6 +258,7 @@
   <div class="brand">
     <span class="brand-name">Volta</span>
     <span class="brand-tag">Gestión</span>
+    <span class="brand-version" id="brand-version"></span>
   </div>
   <div class="sync-bar">
     <div class="sync-dot" id="sync-dot"></div>
@@ -834,6 +836,14 @@
 <script>
   // ─── CONFIG ───────────────────────────────────────────────────
   const CLIENT_ID = '52678653810-dlk885elq27jkr93ikt0en5fnhm3o872.apps.googleusercontent.com';
+  // Número de versión visible en pantalla (al lado del logo). Este archivo (volta_app_v1.html)
+  // ya no se renombra en cada entrega — el nombre queda fijo para siempre para no romper el
+  // ícono instalado de la PWA. En cada cambio que se suba, incrementar ESTA constante (y, para
+  // que el service worker traiga la versión nueva sin depender solo del "red primero", también
+  // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
+  // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
+  const APP_VERSION = 'v2';
+  { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
   const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
   const DISCOVERY = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
