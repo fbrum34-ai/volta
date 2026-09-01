@@ -12,7 +12,7 @@
 // por acá. Si algún día se sube una versión nueva (volta_app_v2.html, etc.),
 // cambiar CACHE_NAME para que el navegador limpie el caché viejo.
 
-const CACHE_NAME = 'volta-app-shell-v1.1';
+const CACHE_NAME = 'volta-app-shell-v1.2';
 const APP_SHELL = [
   './volta_app_v1.html',
   './manifest.json',

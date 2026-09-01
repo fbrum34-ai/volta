@@ -13,8 +13,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Volta">
-  <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
-  <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+  <script>
+    // Banderas por si estos scripts externos terminan de cargar ANTES de que el script
+    // principal (mucho más abajo, cerca del final del archivo) haya definido gapiLoaded/
+    // gisLoaded. Con los scripts ya en caché del navegador, pueden cargar tan rápido que
+    // le ganan al resto de la página — sin esto, eso tira "gapiLoaded is not defined".
+    window.__gapiLoadedEarly = false;
+    window.__gisLoadedEarly = false;
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="if(window.gisLoaded){gisLoaded();}else{window.__gisLoadedEarly=true;}"></script>
+  <script src="https://apis.google.com/js/api.js" async defer onload="if(window.gapiLoaded){gapiLoaded();}else{window.__gapiLoadedEarly=true;}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
   <style>
@@ -2770,6 +2778,10 @@
   // ─── INIT ─────────────────────────────────────────────────────
   window.gapiLoaded=gapiLoaded;
   window.gisLoaded=gisLoaded;
+  // Por si el script de Google ya había terminado de cargar (caché tibia) antes de llegar
+  // hasta acá — ver las banderas seteadas en el <head>.
+  if (window.__gapiLoadedEarly) gapiLoaded();
+  if (window.__gisLoadedEarly) gisLoaded();
 </script>
 <script>
   // Registro del service worker (habilita instalar Volta como app).
