@@ -302,7 +302,7 @@
         <div class="panel-sub">Alta de nuevos prestadores. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="info-box">PARTICULAR y BPS son prestadores fijos del sistema y no pueden modificarse ni darse de baja.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador"></div>
+          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador" oninput="clearFErr('p-nombre')"><span class="field-err" id="err-p-nombre">Campo requerido.</span></div>
           <div class="fg full"><label>Dirección</label><input id="p-dir" type="text" placeholder="Calle, número, ciudad"></div>
           <div class="fg"><label>Persona de contacto</label><input id="p-contacto" type="text" placeholder="Nombre completo"></div>
           <div class="fg"><label>Teléfono</label><input id="p-tel" type="tel" placeholder="+598 99 000 000"></div>
@@ -324,7 +324,7 @@
         <div class="panel-title">Profesionales</div>
         <div class="panel-sub">Alta de nuevos profesionales. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido"></div>
+          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pr-nombre')"><span class="field-err" id="err-pr-nombre">Campo requerido.</span></div>
           <div class="fg"><label>Especialidad</label>
             <select id="pr-esp" class="especialidad-select"><option value="">— Seleccionar —</option></select>
             <span class="field-err" id="err-pr-esp">Seleccioná una especialidad.</span>
@@ -1139,7 +1139,7 @@
     try {
       if (esNuevo) { await sheetAppend('Contratos', filaContrato(registro)); }
       else { const fila = filaDe(db.contratos, registro); if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(registro)); }
-      setSyncOk();
+      setSyncOk(); updateCounts();
     } catch(e){ setSyncErr('Error al guardar'); }
     btn.disabled=false; btn.textContent='Guardar contrato';
     setTimeout(()=>resetCtrForm(), 1000);
@@ -1159,7 +1159,7 @@
     c.estado = 'inactivo';
     renderContratosTable();
     setSyncLoading('Guardando…');
-    try { if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(c)); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try { if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(c)); setSyncOk(); updateCounts(); } catch(e){ setSyncErr('Error al guardar'); }
   }
 
   // ─── ABM ESPECIALIDADES ───────────────────────────────────────
@@ -1590,14 +1590,20 @@
       ['p-nombre','p-dir','p-contacto','p-tel','p-mail'].forEach(req);
       if (!ok) return;
       const nombre=getVal('p-nombre');
-      if (db.prestadores.find(p=>p.nombre===nombre)) { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
+      const existente = db.prestadores.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
       const datos={dir:getVal('p-dir'),contacto:getVal('p-contacto'),tel:getVal('p-tel'),mail:getVal('p-mail'),tickets:document.getElementById('p-tickets').checked};
-      const nuevo={nombre,tipo:'comun',estado:'activo',...datos};
-      db.prestadores.push(nuevo);
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,tipo:'comun',estado:'activo',...datos}; db.prestadores.push(registro); esNuevo = true; }
       document.getElementById('prestadores-ok').classList.add('show');
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
-      try { await sheetAppend('Prestadores', filaPrestador(nuevo)); setSyncOk(); populateAllSelects(); } catch(e){setSyncErr();}
+      try {
+        if (esNuevo) { await sheetAppend('Prestadores', filaPrestador(registro)); }
+        else { const fila=filaDePrestador(registro); if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(registro)); }
+        setSyncOk(); populateAllSelects(); renderQ('prestadores',''); updateCounts();
+      } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     } else if (form==='profesionales') {
       ['pr-nombre','pr-esp','pr-tel','pr-mail'].forEach(req);
@@ -1605,18 +1611,21 @@
       if(mail&&!isValidEmail(mail)){showFErr('pr-mail','Mail inválido.');ok=false;}
       if (!ok) return;
       const nombre=getVal('pr-nombre');
-      if (db.profesionales.find(p=>p.nombre===nombre)) { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
+      const existente = db.profesionales.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
       const datos={esp:getVal('pr-esp'),tel:getVal('pr-tel'),mail};
-      const nuevo={nombre,estado:'activo',...datos};
-      db.profesionales.push(nuevo);
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,estado:'activo',...datos}; db.profesionales.push(registro); esNuevo = true; }
       document.getElementById('profesionales-ok').classList.add('show');
       renderProfList();
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
       try {
-        await sheetAppend('Profesionales', filaProfesional(nuevo));
+        if (esNuevo) { await sheetAppend('Profesionales', filaProfesional(registro)); }
+        else { const fila=filaDe(db.profesionales, registro); if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(registro)); }
         try { await driveCarpetaProfesional(nombre); } catch(de){ console.warn('No se pudo crear carpeta Drive:', de); }
-        setSyncOk(); populateAllSelects();
+        setSyncOk(); populateAllSelects(); renderQ('profesionales',''); updateCounts();
       } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     }
