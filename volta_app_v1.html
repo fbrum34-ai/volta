@@ -321,7 +321,7 @@
         <div class="panel-sub">Alta de nuevos prestadores. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="info-box">PARTICULAR y BPS son prestadores fijos del sistema y no pueden modificarse ni darse de baja.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador"></div>
+          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador" oninput="clearFErr('p-nombre')"><span class="field-err" id="err-p-nombre">Campo requerido.</span></div>
           <div class="fg full"><label>Dirección</label><input id="p-dir" type="text" placeholder="Calle, número, ciudad"></div>
           <div class="fg"><label>Persona de contacto</label><input id="p-contacto" type="text" placeholder="Nombre completo"></div>
           <div class="fg"><label>Teléfono</label><input id="p-tel" type="tel" placeholder="+598 99 000 000"></div>
@@ -343,7 +343,7 @@
         <div class="panel-title">Profesionales</div>
         <div class="panel-sub">Alta de nuevos profesionales. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido"></div>
+          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pr-nombre')"><span class="field-err" id="err-pr-nombre">Campo requerido.</span></div>
           <div class="fg"><label>Especialidad</label>
             <select id="pr-esp" class="especialidad-select"><option value="">— Seleccionar —</option></select>
             <span class="field-err" id="err-pr-esp">Seleccioná una especialidad.</span>
@@ -842,7 +842,7 @@
   // que el service worker traiga la versión nueva sin depender solo del "red primero", también
   // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
   // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
-  const APP_VERSION = 'v2';
+  const APP_VERSION = 'v3';
   { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
   const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
@@ -984,6 +984,10 @@
   // ─── SHEETS HELPERS ───────────────────────────────────────────
   async function sheetGet(range) { const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:SHEET_ID,range}); return r.result.values||[]; }
   async function sheetAppend(sheet,values) { await gapi.client.sheets.spreadsheets.values.append({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:[values]}}); }
+  // ⚠ sheetClear/sheetWrite reescriben la hoja ENTERA — es el patrón que causaba pérdida de
+  // datos entre sesiones concurrentes (ver v11). Ya no se usan en ningún flujo normal de la
+  // app; quedan solo como herramienta de emergencia para reparar datos a mano si hiciera
+  // falta. No usar para altas/ediciones/bajas — usar sheetAppend/sheetUpdateRow.
   async function sheetClear(sheet) { await gapi.client.sheets.spreadsheets.values.clear({spreadsheetId:SHEET_ID,range:sheet+'!A1:Z10000'}); }
   async function sheetWrite(sheet,rows) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',resource:{values:rows}}); }
 
@@ -1050,19 +1054,19 @@
   // ─── CARGA INICIAL ────────────────────────────────────────────
   async function cargarTodo() {
     const [pRows,prRows,pacRows,vRows,sesRows,docRows,docPacRows,ctrRows,espRows] = await Promise.all([
-      sheetGet('Prestadores!A2:F'), sheetGet('Profesionales!A2:D'),
+      sheetGet('Prestadores!A2:G'), sheetGet('Profesionales!A2:E'),
       sheetGet('Pacientes!A2:F'), sheetGet('Vinculos!A2:N'),
-      sheetGet('Sesiones!A2:F'), sheetGet('Documentos!A2:E'),
-      sheetGet('DocumentosPacientes!A2:E'), sheetGet('Contratos!A2:C'),
+      sheetGet('Sesiones!A2:F'), sheetGet('Documentos!A2:F'),
+      sheetGet('DocumentosPacientes!A2:F'), sheetGet('Contratos!A2:D'),
       sheetGet('Especialidades!A2:A')
     ]);
     db.prestadores = [
       { nombre:'PARTICULAR', tipo:'fijo' },
       { nombre:'BPS', tipo:'fijo' }
     ];
-    pRows.forEach(r => { if(r[0]) db.prestadores.push({nombre:r[0],tipo:'comun',dir:r[1]||'',contacto:r[2]||'',tel:r[3]||'',mail:r[4]||'',tickets:(r[5]||'').trim().toLowerCase()==='si'||(r[5]||'').trim().toLowerCase()==='sí'}); });
+    pRows.forEach(r => { if(r[0]) db.prestadores.push({nombre:r[0],tipo:'comun',dir:r[1]||'',contacto:r[2]||'',tel:r[3]||'',mail:r[4]||'',tickets:(r[5]||'').trim().toLowerCase()==='si'||(r[5]||'').trim().toLowerCase()==='sí',estado:(r[6]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}); });
 
-    db.profesionales = prRows.filter(r=>r[0]).map(r=>({nombre:r[0],esp:r[1]||'',tel:r[2]||'',mail:r[3]||''}));
+    db.profesionales = prRows.filter(r=>r[0]).map(r=>({nombre:r[0],esp:r[1]||'',tel:r[2]||'',mail:r[3]||'',estado:(r[4]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     db.pacientes = pacRows.filter(r=>r[0]).map(r=>({nombre:r[0],ci:r[1]||'',tutor:r[2]||'',tutorTel:r[3]||'',tutorMail:r[4]||'',fechaNac:r[5]||''}));
 
@@ -1079,19 +1083,19 @@
       return v;
     });
 
-    // Contratos cols: Prestador, Especialidad, Monto
-    db.contratos = ctrRows.filter(r=>r[0]).map(r=>({prestador:r[0],especialidad:r[1]||'',monto:r[2]||''}));
+    // Contratos cols: Prestador, Especialidad, Monto, Estado
+    db.contratos = ctrRows.filter(r=>r[0]).map(r=>({prestador:r[0],especialidad:r[1]||'',monto:r[2]||'',estado:(r[3]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     db.especialidades = espRows.filter(r=>r[0]).map(r=>r[0]);
     populateEspecialidadSelects();
 
     db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',obs:r[4]||'',ticket:(r[5]||'').trim().toLowerCase()==='si'}));
 
-    // Documentos cols: Profesional, Nombre, Link, FileId, Fecha
-    db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+    // Documentos cols: Profesional, Nombre, Link, FileId, Fecha, Estado
+    db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
-    // DocumentosPacientes cols: Paciente, Nombre, Link, FileId, Fecha
-    db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+    // DocumentosPacientes cols: Paciente, Nombre, Link, FileId, Fecha, Estado
+    db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     populateAllSelects();
     renderProfList();
@@ -1099,39 +1103,33 @@
     ['prestadores','profesionales','pacientes','contratos'].forEach(k=>renderQ(k,''));
   }
 
-  // ─── GUARDAR SHEETS ───────────────────────────────────────────
-  async function guardarPrestadores() {
-    const header=[['Nombre','Dirección','Contacto','Teléfono','Mail','Tickets']];
-    const rows=db.prestadores.filter(p=>p.tipo==='comun').map(p=>[p.nombre,p.dir,p.contacto,p.tel,p.mail,p.tickets?'Si':'No']);
-    await sheetClear('Prestadores'); await sheetWrite('Prestadores',[...header,...rows]);
-  }
-  async function guardarContratos() {
-    const header=[['Prestador','Especialidad','Monto']];
-    const rows=db.contratos.map(c=>[c.prestador,c.especialidad,c.monto]);
-    await sheetClear('Contratos'); await sheetWrite('Contratos',[...header,...rows]);
-  }
-  async function guardarProfesionales() {
-    const header=[['Nombre','Especialidad','Teléfono','Mail']];
-    const rows=db.profesionales.map(p=>[p.nombre,p.esp,p.tel,p.mail]);
-    await sheetClear('Profesionales'); await sheetWrite('Profesionales',[...header,...rows]);
-  }
-  async function guardarPacientes() {
-    const header=[['Nombre','Identificacion','Tutor','TutorTel','TutorMail','FechaNacimiento']];
-    const rows=db.pacientes.map(p=>[p.nombre,p.ci,p.tutor,p.tutorTel,p.tutorMail,p.fechaNac||'']);
-    await sheetClear('Pacientes'); await sheetWrite('Pacientes',[...header,...rows]);
-  }
-  async function guardarVinculos() {
-    const header=[['Paciente','Profesional','Prestador','Tipo','FechaInicio','Dia','Hora','Sesiones','FechaOrigen','FechaFin','Periodicidad','Estado','FechaCierre','Monto']];
-    const rows=db.vinculos.map(v=>[v.paciente,v.profesional,v.prestador,v.tipo,v.fechaInicio,v.dia,v.hora,v.sesiones||'',v.fechaOrigen||'',v.fechaFin||'',v.periodicidad||'',v.estado||'activo',v.fechaCierre||'',v.monto||'']);
-    await sheetClear('Vinculos'); await sheetWrite('Vinculos',[...header,...rows]);
-  }
+  // ─── FILAS POR REGISTRO (para altas por append y ediciones por fila puntual) ──
+  function filaPrestador(p) { return [p.nombre,p.dir||'',p.contacto||'',p.tel||'',p.mail||'',p.tickets?'Si':'No',p.estado||'activo']; }
+  function filaProfesional(p) { return [p.nombre,p.esp||'',p.tel||'',p.mail||'',p.estado||'activo']; }
+  function filaPaciente(p) { return [p.nombre,p.ci||'',p.tutor||'',p.tutorTel||'',p.tutorMail||'',p.fechaNac||'']; }
+  function filaVinculo(v) { return [v.paciente,v.profesional,v.prestador,v.tipo,v.fechaInicio,v.dia,v.hora,v.sesiones||'',v.fechaOrigen||'',v.fechaFin||'',v.periodicidad||'',v.estado||'activo',v.fechaCierre||'',v.monto||'']; }
+  function filaContrato(c) { return [c.prestador,c.especialidad,c.monto,c.estado||'activo']; }
+  function filaDocumento(d) { return [d.profesional,d.nombre,d.link,d.fileId,d.fecha,d.estado||'activo']; }
+  function filaDocPaciente(d) { return [d.paciente,d.nombre,d.link,d.fileId,d.fecha,d.estado||'activo']; }
+  // Número de fila real en la hoja para un registro que ya está cargado en el array
+  // correspondiente. Válido mientras nunca se hagan borrados físicos ni reordenamientos
+  // locales — por eso las bajas son lógicas (columna Estado) y las altas siempre van al
+  // final (push local + append remoto), igual que ya hacía Sesiones.
+  function filaDe(arr, registro) { const i = arr.indexOf(registro); return i < 0 ? null : i + 2; }
+  // Prestadores es un caso especial: db.prestadores tiene 2 entradas sintéticas al principio
+  // (PARTICULAR y BPS, que no son filas reales de la sheet) — así que el índice real de fila
+  // NO es índice+2 como en las demás tablas, sino directamente el índice (el corrimiento de 2
+  // por esas entradas sintéticas cancela el corrimiento de 2 por la fila de encabezado).
+  function filaDePrestador(p) { const i = db.prestadores.indexOf(p); return i < 2 ? null : i; }
+  function activos(arr) { return arr.filter(r => r.estado !== 'inactivo'); }
+
   // ─── ABM CONTRATOS ────────────────────────────────────────────
   function populateCtrPrestSelect() {
     const sel = document.getElementById('ctr-prestador');
     if (!sel) return;
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Seleccionar —</option>';
-    db.prestadores.filter(p=>p.nombre!=='PARTICULAR').forEach(p=>{
+    activos(db.prestadores).filter(p=>p.nombre!=='PARTICULAR').forEach(p=>{
       const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; sel.appendChild(o);
     });
     if (cur) sel.value = cur;
@@ -1168,29 +1166,38 @@
     if (!ok) return;
     const prestador=getVal('ctr-prestador'), especialidad=getVal('ctr-especialidad'), monto=getVal('ctr-monto');
     const existente = db.contratos.find(c=>c.prestador===prestador && c.especialidad.toLowerCase()===especialidad.toLowerCase());
-    if (existente) existente.monto = monto;
-    else db.contratos.push({prestador,especialidad,monto});
+    let registro, esNuevo;
+    if (existente) { existente.monto = monto; existente.estado = 'activo'; registro = existente; esNuevo = false; }
+    else { registro = {prestador,especialidad,monto,estado:'activo'}; db.contratos.push(registro); esNuevo = true; }
     document.getElementById('contratos-ok').classList.add('show');
     renderContratosTable();
     const btn=document.getElementById('btn-contratos');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try {
+      if (esNuevo) { await sheetAppend('Contratos', filaContrato(registro)); }
+      else { const fila = filaDe(db.contratos, registro); if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(registro)); }
+      setSyncOk(); updateCounts();
+    } catch(e){ setSyncErr('Error al guardar'); }
     btn.disabled=false; btn.textContent='Guardar contrato';
     setTimeout(()=>resetCtrForm(), 1000);
   }
   function renderContratosTable() {
     const tbody = document.getElementById('tbody-ctr');
     if (!tbody) return;
-    tbody.innerHTML = db.contratos.length
-      ? db.contratos.map((c,idx)=>`<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td><td><button class="btn-sec" style="padding:5px 10px;font-size:12px;" onclick="eliminarContrato(${idx})">Quitar</button></td></tr>`).join('')
+    const lista = activos(db.contratos);
+    tbody.innerHTML = lista.length
+      ? lista.map(c=>{const idx=db.contratos.indexOf(c);return `<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td><td><button class="btn-sec" style="padding:5px 10px;font-size:12px;" onclick="eliminarContrato(${idx})">Quitar</button></td></tr>`;}).join('')
       : `<tr><td colspan="4" class="empty-state">Sin contratos cargados</td></tr>`;
   }
   async function eliminarContrato(idx) {
-    db.contratos.splice(idx,1);
+    const c = db.contratos[idx];
+    if (!c) return;
+    const fila = filaDe(db.contratos, c);
+    c.estado = 'inactivo';
     renderContratosTable();
     setSyncLoading('Guardando…');
-    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try { if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(c)); setSyncOk(); updateCounts(); } catch(e){ setSyncErr('Error al guardar'); }
   }
 
   // ─── ABM ESPECIALIDADES ───────────────────────────────────────
@@ -1208,11 +1215,6 @@
       ? db.especialidades.map(e=>`<tr><td>${esc(e)}</td></tr>`).join('')
       : `<tr><td class="empty-state">Sin especialidades cargadas</td></tr>`;
   }
-  async function guardarEspecialidades() {
-    const header=[['Nombre']];
-    const rows=db.especialidades.map(e=>[e]);
-    await sheetClear('Especialidades'); await sheetWrite('Especialidades',[...header,...rows]);
-  }
   async function submitEspecialidad() {
     const nombre = getVal('esp-nombre');
     if (!nombre) { showFErr('esp-nombre','Ingresá el nombre de la especialidad.'); return; }
@@ -1226,25 +1228,15 @@
     const btn=document.getElementById('btn-especialidades');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await guardarEspecialidades(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try { await sheetAppend('Especialidades', [nombre]); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
     btn.disabled=false; btn.textContent='Agregar';
     setTimeout(()=>document.getElementById('especialidades-ok').classList.remove('show'), 1500);
   }
 
   async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,'',ses.obs,ses.ticket?'Si':'No']); }
   async function sheetUpdateRow(sheet, rowNum, values) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A'+rowNum+':'+String.fromCharCode(65+values.length-1)+rowNum,valueInputOption:'RAW',resource:{values:[values]}}); }
-  async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos',[doc.profesional,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
-  async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes',[doc.paciente,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
-  async function guardarDocumentosSheet() {
-    const header=[['Profesional','Nombre','Link','FileId','Fecha']];
-    const rows=db.documentos.map(d=>[d.profesional,d.nombre,d.link,d.fileId,d.fecha]);
-    await sheetClear('Documentos'); await sheetWrite('Documentos',[...header,...rows]);
-  }
-  async function guardarDocPacientesSheet() {
-    const header=[['Paciente','Nombre','Link','FileId','Fecha']];
-    const rows=db.docsPacientes.map(d=>[d.paciente,d.nombre,d.link,d.fileId,d.fecha]);
-    await sheetClear('DocumentosPacientes'); await sheetWrite('DocumentosPacientes',[...header,...rows]);
-  }
+  async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos', filaDocumento(doc)); }
+  async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes', filaDocPaciente(doc)); }
 
   // ─── SELECTS GLOBALES ─────────────────────────────────────────
   function populateAllSelects() {
@@ -1258,7 +1250,7 @@
     document.querySelectorAll('.sel-prest').forEach(sel => {
       const cur = sel.value;
       sel.innerHTML = '<option value="">— Seleccionar prestador —</option>';
-      db.prestadores.forEach(p => {
+      activos(db.prestadores).forEach(p => {
         const o = document.createElement('option');
         o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
       });
@@ -1269,7 +1261,7 @@
     document.querySelectorAll('.sel-prof').forEach(sel => {
       const cur = sel.value;
       sel.innerHTML = '<option value="">— Seleccionar profesional —</option>';
-      db.profesionales.forEach(p => {
+      activos(db.profesionales).forEach(p => {
         const o = document.createElement('option');
         o.value = p.nombre; o.textContent = p.nombre + (p.esp ? ' ('+p.esp+')' : ''); sel.appendChild(o);
       });
@@ -1438,11 +1430,15 @@
     if (removable && removeCallback) {
       div.querySelector('.btn-rm-vinculo').addEventListener('click', removeCallback);
     }
-    // Populate selects
+    // Populate selects (activos, más el actual si quedó inactivo después de creado el vínculo)
     const profSel = div.querySelector(`#${prefix}-prof`);
-    db.profesionales.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); profSel.appendChild(o); });
+    const profsOpts = activos(db.profesionales).slice();
+    if (d.profesional && !profsOpts.some(p=>p.nombre===d.profesional)) { const ex=db.profesionales.find(p=>p.nombre===d.profesional); if (ex) profsOpts.push(ex); }
+    profsOpts.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); profSel.appendChild(o); });
     const prestSel = div.querySelector(`#${prefix}-prest`);
-    db.prestadores.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
+    const prestOpts = activos(db.prestadores).slice();
+    if (d.prestador && !prestOpts.some(p=>p.nombre===d.prestador)) { const ex=db.prestadores.find(p=>p.nombre===d.prestador); if (ex) prestOpts.push(ex); }
+    prestOpts.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
     // Pre-fill if data provided
     if (d.profesional) profSel.value = d.profesional;
     if (d.prestador) { prestSel.value = d.prestador; setTimeout(()=>onVinculoPrestChange(prefix),0); }
@@ -1559,7 +1555,8 @@
       showFErr('pac-nombre','Ya existe un paciente con ese nombre.'); return;
     }
     db.pacientes.push(pac);
-    vinculosData.forEach(v => db.vinculos.push({ paciente: pac.nombre, ...v }));
+    const nuevosVinculos = vinculosData.map(v => ({ paciente: pac.nombre, ...v }));
+    nuevosVinculos.forEach(v => db.vinculos.push(v));
 
     document.getElementById('pacientes-ok-txt').textContent = 'Paciente dado de alta con '+vinculosData.length+' vínculo(s).';
     document.getElementById('pacientes-ok').classList.add('show');
@@ -1568,7 +1565,11 @@
     const btn = document.getElementById('btn-pacientes');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await Promise.all([guardarPacientes(), guardarVinculos()]); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    try {
+      await sheetAppend('Pacientes', filaPaciente(pac));
+      for (const v of nuevosVinculos) await sheetAppend('Vinculos', filaVinculo(v));
+      setSyncOk();
+    } catch(e){setSyncErr('Error al guardar');}
     btn.disabled=false; btn.textContent='Registrar alta';
     setTimeout(()=>resetF('pacientes'), 1000);
   }
@@ -1606,13 +1607,14 @@
     clearFErr('valt-paciente');
     const v = readVinculoFields(valtPrefix);
     if (!v) return;
-    db.vinculos.push({ paciente: pacNombre, ...v });
+    const nuevo = { paciente: pacNombre, ...v };
+    db.vinculos.push(nuevo);
     document.getElementById('vinculos-alta-ok').classList.add('show');
     updateCounts();
     const btn=document.querySelector('#abm-vinculos .btn-pri.alta');
     if(btn){btn.disabled=true;btn.textContent='Guardando…';}
     setSyncLoading('Guardando…');
-    try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    try { await sheetAppend('Vinculos', filaVinculo(nuevo)); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
     if(btn){btn.disabled=false;btn.textContent='Registrar vínculo';}
     setTimeout(()=>{ resetVinculoForm(); document.getElementById('vinculos-alta-ok').classList.remove('show'); }, 1500);
   }
@@ -1626,13 +1628,20 @@
       ['p-nombre','p-dir','p-contacto','p-tel','p-mail'].forEach(req);
       if (!ok) return;
       const nombre=getVal('p-nombre');
-      if (db.prestadores.find(p=>p.nombre===nombre)) { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
+      const existente = db.prestadores.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
       const datos={dir:getVal('p-dir'),contacto:getVal('p-contacto'),tel:getVal('p-tel'),mail:getVal('p-mail'),tickets:document.getElementById('p-tickets').checked};
-      db.prestadores.push({nombre,tipo:'comun',...datos});
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,tipo:'comun',estado:'activo',...datos}; db.prestadores.push(registro); esNuevo = true; }
       document.getElementById('prestadores-ok').classList.add('show');
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
-      try { await guardarPrestadores(); setSyncOk(); populateAllSelects(); } catch(e){setSyncErr();}
+      try {
+        if (esNuevo) { await sheetAppend('Prestadores', filaPrestador(registro)); }
+        else { const fila=filaDePrestador(registro); if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(registro)); }
+        setSyncOk(); populateAllSelects(); renderQ('prestadores',''); updateCounts();
+      } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     } else if (form==='profesionales') {
       ['pr-nombre','pr-esp','pr-tel','pr-mail'].forEach(req);
@@ -1640,17 +1649,21 @@
       if(mail&&!isValidEmail(mail)){showFErr('pr-mail','Mail inválido.');ok=false;}
       if (!ok) return;
       const nombre=getVal('pr-nombre');
-      if (db.profesionales.find(p=>p.nombre===nombre)) { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
+      const existente = db.profesionales.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
       const datos={esp:getVal('pr-esp'),tel:getVal('pr-tel'),mail};
-      db.profesionales.push({nombre,...datos});
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,estado:'activo',...datos}; db.profesionales.push(registro); esNuevo = true; }
       document.getElementById('profesionales-ok').classList.add('show');
       renderProfList();
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
       try {
-        await guardarProfesionales();
+        if (esNuevo) { await sheetAppend('Profesionales', filaProfesional(registro)); }
+        else { const fila=filaDe(db.profesionales, registro); if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(registro)); }
         try { await driveCarpetaProfesional(nombre); } catch(de){ console.warn('No se pudo crear carpeta Drive:', de); }
-        setSyncOk(); populateAllSelects();
+        setSyncOk(); populateAllSelects(); renderQ('profesionales',''); updateCounts();
       } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     }
@@ -1722,7 +1735,9 @@
   // ─── PROFESIONALES ────────────────────────────────────────────
   function renderProfList() {
     const list=document.getElementById('prof-list');
-    list.innerHTML=db.profesionales.map((p,i)=>{
+    const lista = activos(db.profesionales);
+    list.innerHTML=lista.map(p=>{
+      const i = db.profesionales.indexOf(p);
       const ini=p.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
       return `<div class="prof-item" onclick="selectProf(${i})"><div class="prof-avatar">${ini}</div><div><div class="prof-item-name">${esc(p.nombre)}</div><div class="prof-item-esp">${esc(p.esp)}</div></div></div>`;
     }).join('');
@@ -1743,7 +1758,7 @@
     goScreen('screen-documentos');
   }
   function renderDocsProfRO() {
-    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre);
+    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre && d.estado !== 'inactivo');
     const tb = document.getElementById('tbody-docs-prof-ro');
     tb.innerHTML = docs.length
       ? docs.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
@@ -2191,7 +2206,7 @@
     // profesional destino: todos menos el actual
     const sel=document.getElementById('reasig-prof');
     sel.innerHTML='<option value="">— Seleccionar —</option>';
-    db.profesionales.filter(p=>p.nombre!==v.profesional).forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
+    activos(db.profesionales).filter(p=>p.nombre!==v.profesional).forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
     clearFErr('reasig-prof'); clearFErr('reasig-dia');
     // horarios sugeridos (heredados, editables)
     const cont=document.getElementById('reasig-horarios');
@@ -2230,9 +2245,11 @@
     try {
       const hoy=new Date().toISOString().slice(0,10);
       const ser=serializeHorarios(horarios);
-      // 1) cerrar el viejo
+      // 1) cerrar el viejo — update puntual a su fila, no toca el resto de la tabla
+      const filaVieja = filaDe(db.vinculos, v);
       db.vinculos[reasigIdx]={...v, estado:'cerrado', fechaCierre:hoy};
-      // 2) abrir el nuevo, heredando todo menos profesional/horarios
+      if (filaVieja) await sheetUpdateRow('Vinculos', filaVieja, filaVinculo(db.vinculos[reasigIdx]));
+      // 2) abrir el nuevo, heredando todo menos profesional/horarios — es un registro nuevo, append
       const nuevo={
         paciente:v.paciente, profesional:nuevoProf, prestador:v.prestador, tipo:v.tipo,
         fechaInicio:hoy, dia:ser.dia, hora:ser.hora, horarios,
@@ -2240,7 +2257,7 @@
         estado:'activo', fechaCierre:''
       };
       db.vinculos.push(nuevo);
-      await guardarVinculos();
+      await sheetAppend('Vinculos', filaVinculo(nuevo));
       setSyncOk(); populateAllSelects();
       document.getElementById('reasig-ok').classList.add('show');
       setTimeout(()=>cancelarReasignacion(), 1200);
@@ -2308,10 +2325,10 @@
 
   // ─── CONSULTAS ────────────────────────────────────────────────
   function updateCounts() {
-    document.getElementById('cnt-p').textContent=db.prestadores.length;
-    document.getElementById('cnt-pr').textContent=db.profesionales.length;
-    document.getElementById('cnt-pac').textContent=db.vinculos.length;
-    document.getElementById('cnt-ctr').textContent=db.contratos.length;
+    document.getElementById('cnt-p').textContent=activos(db.prestadores).length;
+    document.getElementById('cnt-pr').textContent=activos(db.profesionales).length;
+    document.getElementById('cnt-pac').textContent=db.vinculos.filter(v=>v.estado!=='cerrado').length;
+    document.getElementById('cnt-ctr').textContent=activos(db.contratos).length;
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2327,7 +2344,7 @@
     ['detail-prestador','detail-profesional','detail-paciente'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden');});
 
     if (type==='prestadores') {
-      const rows=db.prestadores.filter(r=>!q||r.nombre.toLowerCase().includes(q)||(r.dir||'').toLowerCase().includes(q));
+      const rows=activos(db.prestadores).filter(r=>!q||r.nombre.toLowerCase().includes(q)||(r.dir||'').toLowerCase().includes(q));
       document.getElementById('tbody-p').innerHTML=rows.length
         ? rows.map(r=>{
             const isFijo=r.nombre==='PARTICULAR'||r.nombre==='BPS';
@@ -2339,7 +2356,7 @@
           }).join('')
         : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
     } else if (type==='profesionales') {
-      const rows=db.profesionales.filter(r=>!q||r.nombre.toLowerCase().includes(q)||r.esp.toLowerCase().includes(q));
+      const rows=activos(db.profesionales).filter(r=>!q||r.nombre.toLowerCase().includes(q)||r.esp.toLowerCase().includes(q));
       document.getElementById('tbody-pr').innerHTML=rows.length
         ? rows.map(r=>{const idx=db.profesionales.indexOf(r);return`<tr class="clickable" onclick="abrirDetalleProfesional(${idx})"><td>${esc(r.nombre)}</td><td>${esc(r.esp)}</td><td>${esc(r.tel)}</td><td>${esc(r.mail)}</td></tr>`;}).join('')
         : `<tr><td colspan="4" class="empty-state">Sin resultados</td></tr>`;
@@ -2356,7 +2373,7 @@
           }).join('')
         : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
     } else if (type==='contratos') {
-      const rows=db.contratos.filter(c=>!q||c.prestador.toLowerCase().includes(q)||c.especialidad.toLowerCase().includes(q));
+      const rows=activos(db.contratos).filter(c=>!q||c.prestador.toLowerCase().includes(q)||c.especialidad.toLowerCase().includes(q));
       document.getElementById('tbody-qctr').innerHTML=rows.length
         ? rows.map(c=>`<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td></tr>`).join('')
         : `<tr><td colspan="3" class="empty-state">Sin resultados</td></tr>`;
@@ -2421,7 +2438,7 @@
 
   // ─── DOCUMENTOS DEL PROFESIONAL (admin) ───────────────────────
   function renderDocsProf(profNombre) {
-    const docs=db.documentos.filter(d=>d.profesional===profNombre);
+    const docs=db.documentos.filter(d=>d.profesional===profNombre && d.estado!=='inactivo');
     const tb=document.getElementById('tbody-docs-prof');
     if (!tb) return;
     tb.innerHTML = docs.length
@@ -2447,7 +2464,7 @@
       const folderId=await driveCarpetaProfesional(profNombre);
       const subido=await driveSubirArchivo(file, folderId);
       const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
-      const doc={profesional:profNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      const doc={profesional:profNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10), estado:'activo'};
       db.documentos.push(doc);
       await guardarDocumentoSheet(doc);
       setSyncOk();
@@ -2512,7 +2529,7 @@
 
   // ─── DOCUMENTOS DEL PACIENTE ──────────────────────────────────
   function renderDocsPac(pacNombre) {
-    const docs=db.docsPacientes.filter(d=>d.paciente===pacNombre);
+    const docs=db.docsPacientes.filter(d=>d.paciente===pacNombre && d.estado!=='inactivo');
     const tb=document.getElementById('tbody-docs-pac');
     if (!tb) return;
     tb.innerHTML = docs.length
@@ -2538,7 +2555,7 @@
       const folderId=await driveCarpetaPaciente(pacNombre);
       const subido=await driveSubirArchivo(file, folderId);
       const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
-      const doc={paciente:pacNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      const doc={paciente:pacNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10), estado:'activo'};
       db.docsPacientes.push(doc);
       await guardarDocPacienteSheet(doc);
       setSyncOk();
@@ -2576,30 +2593,40 @@
 
   async function ejecutarBaja(type, idx) {
     if (type==='prestadores') {
-      db.prestadores.splice(idx,1);
+      const p = db.prestadores[idx];
+      if (!p) return;
+      const fila = filaDePrestador(p);
+      p.estado = 'inactivo';
       setSyncLoading('Guardando…');
-      try { await guardarPrestadores(); setSyncOk(); } catch(e){setSyncErr();}
-      renderQ('prestadores',''); updateCounts();
+      try { if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(p)); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('prestadores',''); updateCounts(); populateAllSelects();
     } else if (type==='profesionales') {
-      db.profesionales.splice(idx,1);
+      const p = db.profesionales[idx];
+      if (!p) return;
+      const fila = filaDe(db.profesionales, p);
+      p.estado = 'inactivo';
       renderProfList();
       setSyncLoading('Guardando…');
-      try { await guardarProfesionales(); setSyncOk(); } catch(e){setSyncErr();}
-      renderQ('profesionales',''); updateCounts();
+      try { if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(p)); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('profesionales',''); updateCounts(); populateAllSelects();
     } else if (type==='vinculos') {
-      db.vinculos.splice(idx,1);
+      const v = db.vinculos[idx];
+      if (!v) return;
+      const fila = filaDe(db.vinculos, v);
+      v.estado = 'cerrado'; v.fechaCierre = new Date().toISOString().slice(0,10);
       setSyncLoading('Guardando…');
-      try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr();}
+      try { if (fila) await sheetUpdateRow('Vinculos', fila, filaVinculo(v)); setSyncOk(); } catch(e){setSyncErr();}
       renderQ('pacientes',''); updateCounts();
     } else if (type==='docprof') {
       const doc = db.documentos[idx];
       if (!doc) return;
       const profNombre = doc.profesional;
+      const fila = filaDe(db.documentos, doc);
       setSyncLoading('Eliminando…');
       try {
         if (doc.fileId) { try { await driveTrashArchivo(doc.fileId); } catch(e) { console.error('No se pudo mover el archivo a la papelera de Drive:', e); } }
-        db.documentos.splice(idx,1);
-        await guardarDocumentosSheet();
+        doc.estado = 'inactivo';
+        if (fila) await sheetUpdateRow('Documentos', fila, filaDocumento(doc));
         setSyncOk();
       } catch(e) { setSyncErr(); }
       renderDocsProf(profNombre);
@@ -2607,11 +2634,12 @@
       const doc = db.docsPacientes[idx];
       if (!doc) return;
       const pacNombre = doc.paciente;
+      const fila = filaDe(db.docsPacientes, doc);
       setSyncLoading('Eliminando…');
       try {
         if (doc.fileId) { try { await driveTrashArchivo(doc.fileId); } catch(e) { console.error('No se pudo mover el archivo a la papelera de Drive:', e); } }
-        db.docsPacientes.splice(idx,1);
-        await guardarDocPacientesSheet();
+        doc.estado = 'inactivo';
+        if (fila) await sheetUpdateRow('DocumentosPacientes', fila, filaDocPaciente(doc));
         setSyncOk();
       } catch(e) { setSyncErr(); }
       renderDocsPac(pacNombre);
@@ -2719,24 +2747,24 @@
         const nombre=document.getElementById('ep-nombre').value.trim();
         if(!nombre){showFErr('ep-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.prestadores[idx]={...db.prestadores[idx],nombre,dir:document.getElementById('ep-dir').value.trim(),contacto:document.getElementById('ep-contacto').value.trim(),tel:document.getElementById('ep-tel').value.trim(),mail:document.getElementById('ep-mail').value.trim(),tickets:document.getElementById('ep-tickets').checked};
-        await guardarPrestadores();
+        { const fila = filaDePrestador(db.prestadores[idx]); if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(db.prestadores[idx])); }
       } else if (type==='profesionales') {
         const nombre=document.getElementById('epr-nombre').value.trim();
         if(!nombre){showFErr('epr-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.profesionales[idx]={...db.profesionales[idx],nombre,esp:document.getElementById('epr-esp').value.trim(),tel:document.getElementById('epr-tel').value.trim(),mail:document.getElementById('epr-mail').value.trim()};
         renderProfList();
-        await guardarProfesionales();
+        await sheetUpdateRow('Profesionales', idx+2, filaProfesional(db.profesionales[idx]));
       } else if (type==='pacientes') {
         const nombre=document.getElementById('epac-nombre').value.trim();
         if(!nombre){showFErr('epac-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.pacientes[idx]={nombre,ci:document.getElementById('epac-id-tipo').value+' '+document.getElementById('epac-ci').value.trim(),fechaNac:document.getElementById('epac-fecha-nac').value.trim(),tutor:document.getElementById('epac-tutor').value.trim(),tutorTel:document.getElementById('epac-tutor-tel').value.trim(),tutorMail:document.getElementById('epac-tutor-mail').value.trim()};
-        await guardarPacientes();
+        await sheetUpdateRow('Pacientes', idx+2, filaPaciente(db.pacientes[idx]));
       } else if (type==='vinculos') {
         const v = readVinculoFields('vedit');
         if (!v) { btn.disabled=false; btn.textContent='Guardar cambios'; return; }
         const prev = db.vinculos[editVinculoIdx];
         db.vinculos[editVinculoIdx] = { paciente: prev.paciente, ...v, estado: prev.estado||'activo', fechaCierre: prev.fechaCierre||'' };
-        await guardarVinculos();
+        await sheetUpdateRow('Vinculos', editVinculoIdx+2, filaVinculo(db.vinculos[editVinculoIdx]));
       }
       setSyncOk(); populateAllSelects();
       document.getElementById('edit-ok').classList.add('show');

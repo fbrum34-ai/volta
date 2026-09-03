@@ -15,7 +15,7 @@
 // IMPORTANTE: este número tiene que ir de la mano con APP_VERSION en volta_app_v1.html.
 // Cada vez que se sube una versión nueva del HTML, bumpear también este nombre — es lo que
 // obliga al navegador a descartar el shell viejo cacheado y traer el nuevo.
-const CACHE_NAME = 'volta-app-shell-v2';
+const CACHE_NAME = 'volta-app-shell-v3';
 const APP_SHELL = [
   './volta_app_v1.html',
   './manifest.json',
