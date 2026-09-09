@@ -143,6 +143,8 @@
     .vinculos-err.show { display: block; }
     .horario-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
     .horario-row select { flex: 1; }
+    .horario-row select.hr-hh, .horario-row select.hr-mm { flex: 0 0 64px; }
+    .horario-row .hr-sep { flex: 0 0 auto; color: var(--text-secondary); }
     .btn-rm-horario { flex-shrink: 0; width: 32px; height: 38px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: 16px; cursor: pointer; line-height: 1; transition: all 0.15s; }
     .btn-rm-horario:hover { background: #FAECE7; border-color: #F0997B; color: #993C1D; }
 
@@ -714,6 +716,10 @@
         <input id="ses-ticket" type="checkbox" style="width:auto;">
         <label for="ses-ticket" style="margin:0;">El paciente entregó ticket</label>
       </div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1.5rem;">
+        <input id="ses-doble" type="checkbox" style="width:auto;">
+        <label for="ses-doble" style="margin:0;">Sesión doble (cuenta como 2 en el reporte)</label>
+      </div>
       <div class="fg">
         <label>Observaciones</label>
         <textarea id="ses-obs" placeholder="Escribí aquí los comentarios y observaciones de la sesión..." style="min-height:220px;" oninput="clearFErr('ses-obs')"></textarea>
@@ -761,6 +767,7 @@
           <span class="pill pill-p" id="det-prof-badge"></span>
         </div>
         <div class="pac-card-row"><span class="pac-card-lbl">Ticket</span><span class="pac-card-val" id="det-ticket"></span></div>
+        <div class="pac-card-row"><span class="pac-card-lbl">Sesión doble</span><span class="pac-card-val" id="det-doble"></span></div>
         <div class="sec-lbl" style="margin:12px 0 8px;">Observaciones</div>
         <div class="sesion-obs" id="det-obs"></div>
         <div class="detail-actions" style="margin-top:1rem;">
@@ -777,6 +784,10 @@
         <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1rem;">
           <input id="edet-ticket" type="checkbox" style="width:auto;">
           <label for="edet-ticket" style="margin:0;">El paciente entregó ticket</label>
+        </div>
+        <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1rem;">
+          <input id="edet-doble" type="checkbox" style="width:auto;">
+          <label for="edet-doble" style="margin:0;">Sesión doble (cuenta como 2 en el reporte)</label>
         </div>
         <div class="fg">
           <label>Observaciones</label>
@@ -842,7 +853,7 @@
   // que el service worker traiga la versión nueva sin depender solo del "red primero", también
   // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
   // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
-  const APP_VERSION = 'v3';
+  const APP_VERSION = 'v4';
   { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
   const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
@@ -1056,7 +1067,7 @@
     const [pRows,prRows,pacRows,vRows,sesRows,docRows,docPacRows,ctrRows,espRows] = await Promise.all([
       sheetGet('Prestadores!A2:G'), sheetGet('Profesionales!A2:E'),
       sheetGet('Pacientes!A2:F'), sheetGet('Vinculos!A2:N'),
-      sheetGet('Sesiones!A2:F'), sheetGet('Documentos!A2:F'),
+      sheetGet('Sesiones!A2:G'), sheetGet('Documentos!A2:F'),
       sheetGet('DocumentosPacientes!A2:F'), sheetGet('Contratos!A2:D'),
       sheetGet('Especialidades!A2:A')
     ]);
@@ -1089,7 +1100,9 @@
     db.especialidades = espRows.filter(r=>r[0]).map(r=>r[0]);
     populateEspecialidadSelects();
 
-    db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',obs:r[4]||'',ticket:(r[5]||'').trim().toLowerCase()==='si'}));
+    // Sesiones cols: Nombre, Profesional, Fecha, Hora(sin uso), Observaciones, Ticket, Doble
+    // "Doble" = sesión doble (dos horas seguidas registradas como una sola fila) — cuenta como 2 en el reporte de honorarios.
+    db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',obs:r[4]||'',ticket:(r[5]||'').trim().toLowerCase()==='si',doble:(r[6]||'').trim().toLowerCase()==='si'}));
 
     // Documentos cols: Profesional, Nombre, Link, FileId, Fecha, Estado
     db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
@@ -1233,7 +1246,7 @@
     setTimeout(()=>document.getElementById('especialidades-ok').classList.remove('show'), 1500);
   }
 
-  async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,'',ses.obs,ses.ticket?'Si':'No']); }
+  async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,'',ses.obs,ses.ticket?'Si':'No',ses.doble?'Si':'No']); }
   async function sheetUpdateRow(sheet, rowNum, values) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A'+rowNum+':'+String.fromCharCode(65+values.length-1)+rowNum,valueInputOption:'RAW',resource:{values:[values]}}); }
   async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos', filaDocumento(doc)); }
   async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes', filaDocPaciente(doc)); }
@@ -1281,9 +1294,18 @@
   }
 
   // ─── HORARIOS ─────────────────────────────────────────────────
-  function horariosOpts() {
-    let opts = '<option value="">— Seleccionar —</option>';
-    for (let h=7;h<=21;h++) ['00','15','30','45'].forEach(m=>{opts+=`<option value="${String(h).padStart(2,'0')}:${m}">${String(h).padStart(2,'0')}:${m}</option>`;});
+  // Hora y minutos se muestran en selects separados: la duración de la sesión
+  // varía según especialidad (40' psicólogos, 45' el resto), así que el minuto
+  // de inicio no siempre cae en la vieja grilla de 15'. Con pasos de 5' se
+  // puede representar el horario real de cualquier profesional.
+  function horasOpts() {
+    let opts = '<option value="">— Hora —</option>';
+    for (let h=7;h<=21;h++) opts+=`<option value="${String(h).padStart(2,'0')}">${String(h).padStart(2,'0')}</option>`;
+    return opts;
+  }
+  function minutosOpts() {
+    let opts = '';
+    ['00','05','10','15','20','25','30','35','40','45','50','55'].forEach(m=>{opts+=`<option value="${m}">${m}</option>`;});
     return opts;
   }
 
@@ -1327,14 +1349,20 @@
         <option>Lunes</option><option>Martes</option><option>Miércoles</option>
         <option>Jueves</option><option>Viernes</option><option>Sábado</option>
       </select>
-      <select class="hr-hora">${horariosOpts()}</select>
+      <select class="hr-hh">${horasOpts()}</select>
+      <span class="hr-sep">:</span>
+      <select class="hr-mm">${minutosOpts()}</select>
       <button type="button" class="btn-rm-horario" title="Quitar horario">×</button>`;
     if (dia) row.querySelector('.hr-dia').value=dia;
-    if (hora) row.querySelector('.hr-hora').value=hora;
+    if (hora) {
+      const [hh,mm]=hora.split(':');
+      if (hh) row.querySelector('.hr-hh').value=hh;
+      if (mm) row.querySelector('.hr-mm').value=mm;
+    }
     row.querySelector('.btn-rm-horario').addEventListener('click',()=>{
       const rows=cont.querySelectorAll('.horario-row');
       if (rows.length>1) row.remove();
-      else { row.querySelector('.hr-dia').value=''; row.querySelector('.hr-hora').value=''; }
+      else { row.querySelector('.hr-dia').value=''; row.querySelector('.hr-hh').value=''; row.querySelector('.hr-mm').value='00'; }
     });
     cont.appendChild(row);
   }
@@ -1342,9 +1370,10 @@
   function readHorarios(prefix) {
     const cont=document.getElementById(prefix+'-horarios');
     if (!cont) return [];
-    return [...cont.querySelectorAll('.horario-row')].map(r=>({
-      dia:r.querySelector('.hr-dia').value, hora:r.querySelector('.hr-hora').value
-    })).filter(x=>x.dia||x.hora);
+    return [...cont.querySelectorAll('.horario-row')].map(r=>{
+      const hh=r.querySelector('.hr-hh').value, mm=r.querySelector('.hr-mm').value;
+      return { dia:r.querySelector('.hr-dia').value, hora: hh ? `${hh}:${mm||'00'}` : '' };
+    }).filter(x=>x.dia||x.hora);
   }
 
   // ─── VÍNCULO FORM BUILDER ─────────────────────────────────────
@@ -1789,9 +1818,14 @@
       const vinc = db.vinculos.find(v=>v.paciente===pac&&v.profesional===profNombre&&v.estado!=='cerrado')
                 || db.vinculos.find(v=>v.paciente===pac&&v.profesional===profNombre);
       const prestador = vinc ? vinc.prestador : 'SIN VÍNCULO REGISTRADO';
+      // Una sesión marcada "doble" (dos horas seguidas registradas como una sola fila)
+      // cuenta como 2 a efectos de la liquidación.
       const valor = prestador==='BPS'
-        ? String(sesiones.length)
-        : sesiones.map(s=>parseInt(s.fecha.split('-')[2],10)).join(', ');
+        ? String(sesiones.length + sesiones.filter(s=>s.doble).length)
+        : sesiones.map(s=>{
+            const dia = parseInt(s.fecha.split('-')[2],10);
+            return s.doble ? `${dia} (x2)` : String(dia);
+          }).join(', ');
       (grupos[prestador] = grupos[prestador]||[]).push({ paciente: pac, valor });
     });
     return grupos;
@@ -1885,6 +1919,7 @@
     fechaInput.min=vinc.fechaInicio||'';
     fechaInput.max=hoyISO();
     document.getElementById('ses-ticket').checked=false;
+    document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-obs').value='';
     clearFErr('ses-fecha');
     document.getElementById('ses-pac-card').classList.remove('hidden');
@@ -1895,6 +1930,7 @@
     document.getElementById('ses-paciente').value='';
     document.getElementById('ses-obs').value='';
     document.getElementById('ses-ticket').checked=false;
+    document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-pac-card').classList.add('hidden');
     document.getElementById('ses-ok').classList.remove('show');
     clearFErr('ses-paciente'); clearFErr('ses-obs'); clearFErr('ses-fecha');
@@ -1914,7 +1950,8 @@
     else clearFErr('ses-fecha');
     if(!ok) return;
     const ticket=document.getElementById('ses-ticket').checked;
-    const ses={paciente:pac,profesional:profesionalActivo.nombre,fecha:fecha,obs,ticket};
+    const doble=document.getElementById('ses-doble').checked;
+    const ses={paciente:pac,profesional:profesionalActivo.nombre,fecha:fecha,obs,ticket,doble};
     db.sesiones.push(ses);
     const btn=document.querySelector('#screen-sesion .btn-pri.purple');
     if(btn){btn.disabled=true;btn.textContent='Guardando…';}
@@ -1965,6 +2002,7 @@
     document.getElementById('det-fecha-hora').textContent=fmtFecha(s.fecha);
     document.getElementById('det-prof-badge').textContent=profesionalActivo.nombre;
     document.getElementById('det-ticket').textContent=s.ticket?'Sí':'No';
+    document.getElementById('det-doble').textContent=s.doble?'Sí':'No';
     document.getElementById('det-obs').textContent=s.obs;
     const editable = diasDesde(s.fecha) <= 30;
     document.getElementById('btn-modificar-sesion').style.display = editable?'':'none';
@@ -1983,6 +2021,7 @@
     fechaInput.min = vinc&&vinc.fechaInicio ? vinc.fechaInicio : '';
     fechaInput.max = hoyISO();
     document.getElementById('edet-ticket').checked = !!s.ticket;
+    document.getElementById('edet-doble').checked = !!s.doble;
     document.getElementById('edet-obs').value = s.obs;
     clearFErr('edet-fecha'); clearFErr('edet-obs');
     document.getElementById('edet-ok').classList.remove('show');
@@ -2008,14 +2047,15 @@
     if (!ok) return;
 
     const ticket = document.getElementById('edet-ticket').checked;
+    const doble = document.getElementById('edet-doble').checked;
     const s = db.sesiones[histSesionIdx];
-    s.fecha = fecha; s.obs = obs; s.ticket = ticket;
+    s.fecha = fecha; s.obs = obs; s.ticket = ticket; s.doble = doble;
 
     const btn = document.getElementById('btn-guardar-edicion-sesion');
     btn.disabled = true; btn.textContent = 'Guardando…';
     setSyncLoading('Guardando…');
     try {
-      await sheetUpdateRow('Sesiones', histSesionIdx+2, [s.paciente, s.profesional, s.fecha, '', s.obs, s.ticket?'Si':'No']);
+      await sheetUpdateRow('Sesiones', histSesionIdx+2, [s.paciente, s.profesional, s.fecha, '', s.obs, s.ticket?'Si':'No', s.doble?'Si':'No']);
       setSyncOk();
     } catch(e) { setSyncErr('Error al guardar'); }
     btn.disabled = false; btn.textContent = 'Guardar cambios';
