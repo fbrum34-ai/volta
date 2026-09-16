@@ -97,6 +97,8 @@
     textarea { resize: vertical; min-height: 180px; line-height: 1.6; }
     .field-err { font-size: 11px; color: #A32D2D; margin-top: 2px; display: none; }
     .field-err.show { display: block; }
+    .field-warn { font-size: 11px; color: #9A6B00; margin-top: 2px; display: none; }
+    .field-warn.show { display: block; }
     .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
     .submit-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem; }
     .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-bottom: 1.5rem; transition: background 0.15s; }
@@ -709,8 +711,9 @@
       <div class="pac-card" id="ses-pac-card-inner"></div>
       <div class="fg" style="margin-bottom:1.5rem;">
         <label>Fecha</label>
-        <input id="ses-fecha" type="date" oninput="clearFErr('ses-fecha')">
+        <input id="ses-fecha" type="date" oninput="onSesFechaChange()">
         <span class="field-err" id="err-ses-fecha">La fecha no puede ser anterior al inicio del vínculo ni posterior a hoy.</span>
+        <span class="field-warn" id="warn-ses-fecha"></span>
       </div>
       <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1.5rem;">
         <input id="ses-ticket" type="checkbox" style="width:auto;">
@@ -778,8 +781,9 @@
       <div class="sesion-detail hidden" id="det-edit">
         <div class="fg" style="margin-bottom:1rem;">
           <label>Fecha</label>
-          <input id="edet-fecha" type="date" oninput="clearFErr('edet-fecha')">
+          <input id="edet-fecha" type="date" oninput="onEdetFechaChange()">
           <span class="field-err" id="err-edet-fecha">La fecha no puede ser anterior al inicio del vínculo ni posterior a hoy.</span>
+          <span class="field-warn" id="warn-edet-fecha"></span>
         </div>
         <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1rem;">
           <input id="edet-ticket" type="checkbox" style="width:auto;">
@@ -853,7 +857,7 @@
   // que el service worker traiga la versión nueva sin depender solo del "red primero", también
   // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
   // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
-  const APP_VERSION = 'v4';
+  const APP_VERSION = 'v5';
   { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
   const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
@@ -1922,6 +1926,7 @@
     document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-obs').value='';
     clearFErr('ses-fecha');
+    onSesFechaChange();
     document.getElementById('ses-pac-card').classList.remove('hidden');
     document.getElementById('ses-ok').classList.remove('show');
   }
@@ -1933,7 +1938,7 @@
     document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-pac-card').classList.add('hidden');
     document.getElementById('ses-ok').classList.remove('show');
-    clearFErr('ses-paciente'); clearFErr('ses-obs'); clearFErr('ses-fecha');
+    clearFErr('ses-paciente'); clearFErr('ses-obs'); clearFErr('ses-fecha'); clearFWarn('ses-fecha');
   }
 
   async function guardarSesion() {
@@ -2024,6 +2029,7 @@
     document.getElementById('edet-doble').checked = !!s.doble;
     document.getElementById('edet-obs').value = s.obs;
     clearFErr('edet-fecha'); clearFErr('edet-obs');
+    onEdetFechaChange();
     document.getElementById('edet-ok').classList.remove('show');
     document.getElementById('det-view').classList.add('hidden');
     document.getElementById('det-edit').classList.remove('hidden');
@@ -2840,6 +2846,34 @@
   function getVal(id) { const el=document.getElementById(id); return el?el.value.trim():''; }
   function showFErr(id,msg) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.add('err'); if(err){if(msg)err.textContent=msg;err.classList.add('show');} }
   function clearFErr(id) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.remove('err'); if(err)err.classList.remove('show'); }
+  function showFWarn(id,msg) { const w=document.getElementById('warn-'+id); if(w){if(msg)w.textContent=msg;w.classList.add('show');} }
+  function clearFWarn(id) { const w=document.getElementById('warn-'+id); if(w)w.classList.remove('show'); }
+  // Aviso (no bloqueante) si el día de la semana de la fecha elegida no coincide con el
+  // día habitual del vínculo. El profesional puede guardar igual — puede ser una sesión
+  // excepcional — esto es solo para ayudar a pescar errores de tipeo en la fecha.
+  // (DIAS_SEMANA se define más arriba, junto a Asistencia — reutilizada acá también.)
+  function checkFechaVsHorario(fechaISO, vinc) {
+    if (!fechaISO || !vinc) return null;
+    const horarios = vinc.horarios&&vinc.horarios.length ? vinc.horarios : parseHorarios(vinc.dia, vinc.hora);
+    const dias = [...new Set(horarios.map(h=>h.dia).filter(Boolean))];
+    if (!dias.length) return null;
+    const diaFecha = DIAS_SEMANA[new Date(fechaISO+'T12:00:00').getDay()];
+    if (dias.includes(diaFecha)) return null;
+    return `La fecha elegida cae un ${diaFecha}, pero el vínculo tiene asignado ${dias.join(' y ')}. Revisá que la fecha sea correcta.`;
+  }
+  function onSesFechaChange() {
+    clearFErr('ses-fecha');
+    const pac=document.getElementById('ses-paciente').value;
+    const vinc=db.vinculos.find(v=>v.paciente===pac&&v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    const msg=checkFechaVsHorario(document.getElementById('ses-fecha').value, vinc);
+    if (msg) showFWarn('ses-fecha', msg); else clearFWarn('ses-fecha');
+  }
+  function onEdetFechaChange() {
+    clearFErr('edet-fecha');
+    const vinc=db.vinculos.find(v=>v.paciente===histSesionPaciente&&v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    const msg=checkFechaVsHorario(document.getElementById('edet-fecha').value, vinc);
+    if (msg) showFWarn('edet-fecha', msg); else clearFWarn('edet-fecha');
+  }
   function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
   function parseIdent(v) {
     v = (v||'').trim();
