@@ -24,7 +24,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer onload="if(window.gisLoaded){gisLoaded();}else{window.__gisLoadedEarly=true;}"></script>
   <script src="https://apis.google.com/js/api.js" async defer onload="if(window.gapiLoaded){gapiLoaded();}else{window.__gapiLoadedEarly=true;}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -241,6 +241,53 @@
 
     /* ESTADO GUARDANDO EN BOTONES */
     .btn-pri:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* BOTÓN SALIR */
+    .btn-salir { padding: 3px 10px; border: 0.5px solid var(--border-strong); border-radius: 99px; background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; margin-left: 8px; }
+    .btn-salir:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+    /* ═══ TEMA CENTRO VOLTA (v6) ═══════════════════════════════════
+       Solo estilo: misma paleta y tipografía que el sitio público del centro.
+       Para volver al aspecto anterior alcanza con borrar este bloque. */
+    :root {
+      --volta-yellow: #F9DF56; --volta-amber: #E8B500; --volta-charcoal: #494738;
+      --volta-cream: #FBF7E6; --volta-yellow-soft: #FDF3C4;
+      --bg: #ffffff; --bg-secondary: #F7F4EA; --text-primary: #2E2D24;
+      --text-secondary: #6E6B5C; --text-tertiary: #A9A592;
+      --border: rgba(73,71,56,0.14); --border-strong: rgba(73,71,56,0.26);
+      --radius-md: 10px; --radius-lg: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --volta-cream: #1E1D18; --volta-yellow-soft: #3A3420;
+        --bg: #22211B; --bg-secondary: #2B2A23; --text-primary: #F2EFE3;
+        --text-secondary: #ABA792; --text-tertiary: #6D6A5B;
+        --border: rgba(249,223,86,0.12); --border-strong: rgba(249,223,86,0.22);
+      }
+    }
+    body { background: var(--volta-cream); }
+    .app { border: none; box-shadow: 0 1px 2px rgba(73,71,56,0.06), 0 8px 28px rgba(73,71,56,0.08); }
+    .brand { position: relative; padding-bottom: 14px; margin-bottom: 1.5rem; }
+    .brand::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 4px; border-radius: 4px; background: var(--volta-yellow); }
+    .brand-name, .auth-logo { font-family: 'Fraunces', serif; font-weight: 600; letter-spacing: -0.5px; }
+    .auth-logo { font-size: 34px; }
+    .auth-box { border: none; box-shadow: 0 8px 28px rgba(73,71,56,0.12); border-top: 5px solid var(--volta-yellow); }
+    .home-card { border-color: var(--border); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+    .home-card:hover { background: var(--bg); border-color: var(--volta-amber); box-shadow: 0 6px 18px rgba(73,71,56,0.10); transform: translateY(-2px); }
+    .home-card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; }
+    .prof-avatar { background: var(--volta-yellow); color: var(--volta-charcoal); font-weight: 600; }
+    .main-tab { border-radius: 99px; }
+    .main-tab.active { background: var(--volta-charcoal); border-color: var(--volta-charcoal); color: #fff; }
+    .sub-tab.active { border-bottom-color: var(--volta-amber); }
+    .btn-pri { background: var(--volta-charcoal); color: #fff; border-radius: 99px; }
+    .btn-sec, .btn-back, .btn-danger { border-radius: 99px; }
+    .panel-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--volta-amber); box-shadow: 0 0 0 3px rgba(232,181,0,0.18); }
+    thead tr { background: var(--volta-yellow-soft); }
+    @media (prefers-color-scheme: dark) {
+      .main-tab.active, .btn-pri { background: var(--volta-yellow); border-color: var(--volta-yellow); color: #2E2D24; }
+      .prof-avatar { background: var(--volta-amber); }
+    }
   </style>
 </head>
 <body>
@@ -266,7 +313,9 @@
     <span class="brand-version" id="brand-version"></span>
   </div>
   <div class="sync-bar">
-    <span id="user-email" style="margin-right:auto;"></span>
+    <span id="user-email"></span>
+    <button id="btn-salir" class="btn-salir hidden" onclick="salir()">Salir</button>
+    <span style="margin-right:auto;"></span>
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-txt">Conectando…</span>
   </div>
@@ -986,6 +1035,7 @@
       return;
     }
     document.getElementById('user-email').textContent = emailCuenta;
+    document.getElementById('btn-salir').classList.remove('hidden');
     const acceso = resolverAcceso(emailCuenta, db.profesionales);
     modoSesion = acceso.modo === 'no-habilitado' ? null : acceso.modo;
     if (acceso.modo === 'admin') { goAdmin(); return; }
@@ -998,6 +1048,8 @@
       '<button class="btn-sec" onclick="volverALogin()">Ingresar con otra cuenta</button>';
     goScreen('screen-home');
   }
+  // Botón "Salir": cierra la sesión de Volta (no la de Google en el dispositivo).
+  function salir() { volverALogin(); setSyncErr('Sesión cerrada'); }
   // Olvida el token y vuelve a la pantalla de ingreso (opcionalmente con un mensaje).
   function volverALogin(msg) {
     sessionStorage.removeItem(TOKEN_KEY);
@@ -1005,6 +1057,7 @@
     accessToken = null; modoSesion = null; profesionalActivo = null; emailCuenta = '';
     try { gapi.client.setToken(null); } catch(e) {}
     document.getElementById('user-email').textContent = '';
+    document.getElementById('btn-salir').classList.add('hidden');
     document.getElementById('home-msg').textContent = 'Identificando la cuenta…';
     goScreen('screen-home');
     const el = document.getElementById('auth-data-err');
