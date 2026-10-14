@@ -4,10 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Volta — Gestión</title>
-  <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
-  <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+  <!-- PWA: hace que se pueda instalar como app propia, con su ícono, en vez de
+       depender de un link que a veces se abre dentro de otra app (WhatsApp, etc.) -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#494738">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Volta">
+  <script>
+    // Banderas por si estos scripts externos terminan de cargar ANTES de que el script
+    // principal (mucho más abajo, cerca del final del archivo) haya definido gapiLoaded/
+    // gisLoaded. Con los scripts ya en caché del navegador, pueden cargar tan rápido que
+    // le ganan al resto de la página — sin esto, eso tira "gapiLoaded is not defined".
+    window.__gapiLoadedEarly = false;
+    window.__gisLoadedEarly = false;
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="if(window.gisLoaded){gisLoaded();}else{window.__gisLoadedEarly=true;}"></script>
+  <script src="https://apis.google.com/js/api.js" async defer onload="if(window.gapiLoaded){gapiLoaded();}else{window.__gapiLoadedEarly=true;}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -30,6 +47,7 @@
     .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2.5rem; }
     .brand-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 500; letter-spacing: -0.5px; }
     .brand-tag { font-size: 11px; color: var(--text-secondary); letter-spacing: 1.5px; text-transform: uppercase; }
+    .brand-version { font-size: 10px; color: var(--text-secondary); opacity: 0.55; margin-left: 6px; }
     .screen { display: none; } .screen.active { display: block; }
     .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 1rem; }
     @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
@@ -79,6 +97,8 @@
     textarea { resize: vertical; min-height: 180px; line-height: 1.6; }
     .field-err { font-size: 11px; color: #A32D2D; margin-top: 2px; display: none; }
     .field-err.show { display: block; }
+    .field-warn { font-size: 11px; color: #9A6B00; margin-top: 2px; display: none; }
+    .field-warn.show { display: block; }
     .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
     .submit-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem; }
     .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-bottom: 1.5rem; transition: background 0.15s; }
@@ -125,6 +145,8 @@
     .vinculos-err.show { display: block; }
     .horario-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
     .horario-row select { flex: 1; }
+    .horario-row select.hr-hh, .horario-row select.hr-mm { flex: 0 0 64px; }
+    .horario-row .hr-sep { flex: 0 0 auto; color: var(--text-secondary); }
     .btn-rm-horario { flex-shrink: 0; width: 32px; height: 38px; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); font-size: 16px; cursor: pointer; line-height: 1; transition: all 0.15s; }
     .btn-rm-horario:hover { background: #FAECE7; border-color: #F0997B; color: #993C1D; }
 
@@ -219,6 +241,53 @@
 
     /* ESTADO GUARDANDO EN BOTONES */
     .btn-pri:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* BOTÓN SALIR */
+    .btn-salir { padding: 3px 10px; border: 0.5px solid var(--border-strong); border-radius: 99px; background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; margin-left: 8px; }
+    .btn-salir:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+    /* ═══ TEMA CENTRO VOLTA (v6) ═══════════════════════════════════
+       Solo estilo: misma paleta y tipografía que el sitio público del centro.
+       Para volver al aspecto anterior alcanza con borrar este bloque. */
+    :root {
+      --volta-yellow: #F9DF56; --volta-amber: #E8B500; --volta-charcoal: #494738;
+      --volta-cream: #FBF7E6; --volta-yellow-soft: #FDF3C4;
+      --bg: #ffffff; --bg-secondary: #F7F4EA; --text-primary: #2E2D24;
+      --text-secondary: #6E6B5C; --text-tertiary: #A9A592;
+      --border: rgba(73,71,56,0.14); --border-strong: rgba(73,71,56,0.26);
+      --radius-md: 10px; --radius-lg: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --volta-cream: #1E1D18; --volta-yellow-soft: #3A3420;
+        --bg: #22211B; --bg-secondary: #2B2A23; --text-primary: #F2EFE3;
+        --text-secondary: #ABA792; --text-tertiary: #6D6A5B;
+        --border: rgba(249,223,86,0.12); --border-strong: rgba(249,223,86,0.22);
+      }
+    }
+    body { background: var(--volta-cream); }
+    .app { border: none; box-shadow: 0 1px 2px rgba(73,71,56,0.06), 0 8px 28px rgba(73,71,56,0.08); }
+    .brand { position: relative; padding-bottom: 14px; margin-bottom: 1.5rem; }
+    .brand::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 4px; border-radius: 4px; background: var(--volta-yellow); }
+    .brand-name, .auth-logo { font-family: 'Fraunces', serif; font-weight: 600; letter-spacing: -0.5px; }
+    .auth-logo { font-size: 34px; }
+    .auth-box { border: none; box-shadow: 0 8px 28px rgba(73,71,56,0.12); border-top: 5px solid var(--volta-yellow); }
+    .home-card { border-color: var(--border); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+    .home-card:hover { background: var(--bg); border-color: var(--volta-amber); box-shadow: 0 6px 18px rgba(73,71,56,0.10); transform: translateY(-2px); }
+    .home-card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; }
+    .prof-avatar { background: var(--volta-yellow); color: var(--volta-charcoal); font-weight: 600; }
+    .main-tab { border-radius: 99px; }
+    .main-tab.active { background: var(--volta-charcoal); border-color: var(--volta-charcoal); color: #fff; }
+    .sub-tab.active { border-bottom-color: var(--volta-amber); }
+    .btn-pri { background: var(--volta-charcoal); color: #fff; border-radius: 99px; }
+    .btn-sec, .btn-back, .btn-danger { border-radius: 99px; }
+    .panel-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--volta-amber); box-shadow: 0 0 0 3px rgba(232,181,0,0.18); }
+    thead tr { background: var(--volta-yellow-soft); }
+    @media (prefers-color-scheme: dark) {
+      .main-tab.active, .btn-pri { background: var(--volta-yellow); border-color: var(--volta-yellow); color: #2E2D24; }
+      .prof-avatar { background: var(--volta-amber); }
+    }
   </style>
 </head>
 <body>
@@ -227,11 +296,12 @@
   <div class="auth-box">
     <div class="auth-logo">Volta</div>
     <div class="auth-sub">Gestión del centro</div>
-    <button class="auth-btn" onclick="iniciarLogin()">
+    <button class="auth-btn" id="btn-login" onclick="iniciarLogin()" disabled>
       <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.17z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/></svg>
-      Ingresar con Google
+      <span id="btn-login-txt">Cargando…</span>
     </button>
     <div id="auth-err" class="auth-err">No se pudo iniciar sesión. Intentá de nuevo.</div>
+    <div id="auth-data-err" class="auth-err"></div>
   </div>
 </div>
 
@@ -239,47 +309,24 @@
   <div class="brand">
     <span class="brand-name">Volta</span>
     <span class="brand-tag">Gestión</span>
+    <span class="brand-version" id="brand-version"></span>
   </div>
   <div class="sync-bar">
+    <span id="user-email"></span>
+    <button id="btn-salir" class="btn-salir hidden" onclick="salir()">Salir</button>
+    <span style="margin-right:auto;"></span>
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-txt">Conectando…</span>
   </div>
 
-  <!-- HOME -->
+  <!-- INICIO: ya no hay menú. Se muestra mientras se identifica la cuenta y, si la cuenta
+       no está habilitada, queda mostrando el aviso. El destino lo decide entrarSegunCuenta(). -->
   <div id="screen-home" class="screen active">
-    <div style="font-size:15px;color:var(--text-secondary);margin-bottom:1.5rem;">¿Cómo ingresás hoy?</div>
-    <div class="home-grid">
-      <div class="home-card" onclick="goAdmin()">
-        <div class="home-card-icon icon-admin">⚙</div>
-        <div class="home-card-title">Administrador</div>
-        <div class="home-card-sub">Gestión de prestadores, profesionales y pacientes</div>
-      </div>
-      <div class="home-card" onclick="goScreen('screen-proflist')">
-        <div class="home-card-icon icon-prof">◆</div>
-        <div class="home-card-title">Profesional</div>
-        <div class="home-card-sub">Registrar sesiones y consultar historia clínica</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CLAVE ADMINISTRADOR -->
-  <div id="screen-admin-pass" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
-    <div class="panel-title" style="margin-bottom:4px;">Administrador</div>
-    <div class="panel-sub">Ingresá la clave para continuar.</div>
-    <div class="fg full" style="max-width:320px;margin-top:1rem;">
-      <label>Clave</label>
-      <input id="admin-pass-input" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkAdminPassword()" oninput="document.getElementById('admin-pass-err').classList.remove('show')">
-      <span class="field-err" id="admin-pass-err">Clave incorrecta.</span>
-    </div>
-    <div class="submit-row" style="max-width:320px;">
-      <button class="btn-pri alta" onclick="checkAdminPassword()">Ingresar</button>
-    </div>
+    <div id="home-msg" style="font-size:15px;color:var(--text-secondary);">Identificando la cuenta…</div>
   </div>
 
   <!-- ADMIN -->
   <div id="screen-admin" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
     <div class="main-nav">
       <button id="tab-abm" class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
       <button id="tab-consultas" class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
@@ -301,7 +348,7 @@
         <div class="panel-sub">Alta de nuevos prestadores. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="info-box">PARTICULAR y BPS son prestadores fijos del sistema y no pueden modificarse ni darse de baja.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador"></div>
+          <div class="fg full"><label>Nombre / Razón social</label><input id="p-nombre" type="text" placeholder="Nombre del prestador" oninput="clearFErr('p-nombre')"><span class="field-err" id="err-p-nombre">Campo requerido.</span></div>
           <div class="fg full"><label>Dirección</label><input id="p-dir" type="text" placeholder="Calle, número, ciudad"></div>
           <div class="fg"><label>Persona de contacto</label><input id="p-contacto" type="text" placeholder="Nombre completo"></div>
           <div class="fg"><label>Teléfono</label><input id="p-tel" type="tel" placeholder="+598 99 000 000"></div>
@@ -323,7 +370,7 @@
         <div class="panel-title">Profesionales</div>
         <div class="panel-sub">Alta de nuevos profesionales. Para modificar o dar de baja, usá la sección Consultas.</div>
         <div class="grid2">
-          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido"></div>
+          <div class="fg full"><label>Nombre completo</label><input id="pr-nombre" type="text" placeholder="Nombre y apellido" oninput="clearFErr('pr-nombre')"><span class="field-err" id="err-pr-nombre">Campo requerido.</span></div>
           <div class="fg"><label>Especialidad</label>
             <select id="pr-esp" class="especialidad-select"><option value="">— Seleccionar —</option></select>
             <span class="field-err" id="err-pr-esp">Seleccioná una especialidad.</span>
@@ -597,16 +644,8 @@
     </div>
     <div id="reasig-ok" class="ok-msg"><span>✓</span><span>Paciente reasignado correctamente.</span></div>
   </div>
-  <div id="screen-proflist" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
-    <div class="panel-title" style="margin-bottom:4px;">Profesionales</div>
-    <div class="panel-sub">Seleccioná tu nombre para continuar</div>
-    <div class="prof-list" id="prof-list"></div>
-  </div>
-
   <!-- MENÚ PROFESIONAL -->
   <div id="screen-profmenu" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-proflist')">← Profesionales</button>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:2rem;">
       <div class="prof-avatar" id="pm-avatar" style="width:44px;height:44px;font-size:14px;"></div>
       <div>
@@ -687,12 +726,17 @@
       <div class="pac-card" id="ses-pac-card-inner"></div>
       <div class="fg" style="margin-bottom:1.5rem;">
         <label>Fecha</label>
-        <input id="ses-fecha" type="date" oninput="clearFErr('ses-fecha')">
+        <input id="ses-fecha" type="date" oninput="onSesFechaChange()">
         <span class="field-err" id="err-ses-fecha">La fecha no puede ser anterior al inicio del vínculo ni posterior a hoy.</span>
+        <span class="field-warn" id="warn-ses-fecha"></span>
       </div>
       <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1.5rem;">
         <input id="ses-ticket" type="checkbox" style="width:auto;">
         <label for="ses-ticket" style="margin:0;">El paciente entregó ticket</label>
+      </div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1.5rem;">
+        <input id="ses-doble" type="checkbox" style="width:auto;">
+        <label for="ses-doble" style="margin:0;">Sesión doble (cuenta como 2 en el reporte)</label>
       </div>
       <div class="fg">
         <label>Observaciones</label>
@@ -741,6 +785,7 @@
           <span class="pill pill-p" id="det-prof-badge"></span>
         </div>
         <div class="pac-card-row"><span class="pac-card-lbl">Ticket</span><span class="pac-card-val" id="det-ticket"></span></div>
+        <div class="pac-card-row"><span class="pac-card-lbl">Sesión doble</span><span class="pac-card-val" id="det-doble"></span></div>
         <div class="sec-lbl" style="margin:12px 0 8px;">Observaciones</div>
         <div class="sesion-obs" id="det-obs"></div>
         <div class="detail-actions" style="margin-top:1rem;">
@@ -751,12 +796,17 @@
       <div class="sesion-detail hidden" id="det-edit">
         <div class="fg" style="margin-bottom:1rem;">
           <label>Fecha</label>
-          <input id="edet-fecha" type="date" oninput="clearFErr('edet-fecha')">
+          <input id="edet-fecha" type="date" oninput="onEdetFechaChange()">
           <span class="field-err" id="err-edet-fecha">La fecha no puede ser anterior al inicio del vínculo ni posterior a hoy.</span>
+          <span class="field-warn" id="warn-edet-fecha"></span>
         </div>
         <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1rem;">
           <input id="edet-ticket" type="checkbox" style="width:auto;">
           <label for="edet-ticket" style="margin:0;">El paciente entregó ticket</label>
+        </div>
+        <div class="fg" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:1rem;">
+          <input id="edet-doble" type="checkbox" style="width:auto;">
+          <label for="edet-doble" style="margin:0;">Sesión doble (cuenta como 2 en el reporte)</label>
         </div>
         <div class="fg">
           <label>Observaciones</label>
@@ -816,8 +866,25 @@
 <script>
   // ─── CONFIG ───────────────────────────────────────────────────
   const CLIENT_ID = '52678653810-dlk885elq27jkr93ikt0en5fnhm3o872.apps.googleusercontent.com';
+  // Número de versión visible en pantalla (al lado del logo). Este archivo (volta_app_v1.html)
+  // ya no se renombra en cada entrega — el nombre queda fijo para siempre para no romper el
+  // ícono instalado de la PWA. En cada cambio que se suba, incrementar ESTA constante (y, para
+  // que el service worker traiga la versión nueva sin depender solo del "red primero", también
+  // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
+  // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
+  const APP_VERSION = 'v6';
+  { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
+  // PRODUCCIÓN. (Desarrollo: '13v3F1xu_pH1gzwxkE5F3DQkJIEnu-1ka9Rohc_lSmis')
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
-  const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+  // 'openid email' se agregan para saber con qué cuenta entró la persona (ver obtenerEmailCuenta).
+  const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file openid email';
+  // Cuenta de administración: entra directo a Administración (reemplaza a la clave de v5).
+  // No es un secreto: el email lo verifica Google al iniciar sesión, no la app. Lo que protege
+  // los datos son los permisos de la planilla y de Drive.
+  const ADMIN_EMAIL = 'voltacentro@gmail.com';
+  // Clave propia de esta versión para el token guardado: un token de v5 no trae el permiso
+  // 'email', así que no sirve para identificar la cuenta.
+  const TOKEN_KEY = 'volta_token_v6';
   const DISCOVERY = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
   const DISCOVERY_DRIVE = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
   const ROOT_FOLDER_NAME = 'VoltaProfesionales';
@@ -833,6 +900,27 @@
 
   let tokenClient = null, gapiReady = false, gisReady = false, accessToken = null;
   let profesionalActivo = null;
+  // Rol de la sesión, decidido por el email de la cuenta: 'admin' | 'profesional' | null.
+  let modoSesion = null;
+  let emailCuenta = '';
+
+  // ─── DETECCIÓN DE NAVEGADOR EMBEBIDO (WhatsApp, Instagram, Facebook, etc.) ─────
+  // Google bloquea el login OAuth dentro de estos "WebView" por seguridad (política vigente
+  // desde 2021, no es algo que se pueda evitar desde acá). La detección por user-agent no es
+  // 100% infalible en iOS (WhatsApp ahí no siempre se distingue de Safari), pero cubre el caso
+  // más común (Android) y avisa de entrada en vez de dejar que la persona espere en vano.
+  function esNavegadorEmbebido() {
+    const ua = navigator.userAgent || '';
+    if (/; ?wv\)/i.test(ua)) return true; // marca estándar de WebView en Android
+    if (/FBAN|FBAV|Instagram|Line\//i.test(ua)) return true; // algunas apps sí se identifican
+    return false;
+  }
+  if (esNavegadorEmbebido()) {
+    const el = document.getElementById('auth-data-err');
+    el.textContent = 'Parece que abriste este link dentro de otra app (WhatsApp, Instagram, etc.), y Google no permite iniciar sesión ahí por seguridad. Tocá el botón "⋮" o "Abrir en el navegador" (o mantené presionado el link y elegí esa opción) para abrirlo en Chrome, Safari u otro navegador normal.';
+    el.classList.add('show');
+    el.dataset.kind = 'webview';
+  }
 
   // ─── GOOGLE AUTH ──────────────────────────────────────────────
   function gapiLoaded() {
@@ -849,42 +937,191 @@
         accessToken = resp.access_token;
         document.getElementById('auth-overlay').classList.add('hidden');
         setSyncLoading('Cargando datos…');
-        await cargarTodo(); setSyncOk();
+        try { await cargarTodo(); setSyncOk(); } catch(e) { mostrarErrorCarga(e); return; }
+        await entrarSegunCuenta();
       }
     });
     gisReady = true; maybeReady();
   }
   function maybeReady() {
     if (!gapiReady || !gisReady) return;
-    const saved = sessionStorage.getItem('volta_token');
+    clearTimeout(authInitTimeout);
+    const btn = document.getElementById('btn-login');
+    btn.disabled = false;
+    document.getElementById('btn-login-txt').textContent = 'Ingresar con Google';
+    // Si el aviso mostrado era el de "está tardando" (no el de "estás en WhatsApp/Instagram",
+    // que sigue siendo válido aunque el script haya cargado, porque el login en sí va a
+    // seguir bloqueado ahí), lo sacamos porque ya se resolvió solo.
+    const errEl = document.getElementById('auth-data-err');
+    if (errEl.classList.contains('show') && errEl.dataset.kind === 'timeout') {
+      errEl.classList.remove('show'); errEl.innerHTML = ''; delete errEl.dataset.kind;
+    }
+    const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) {
       gapi.client.setToken({ access_token: saved });
       accessToken = saved;
       document.getElementById('auth-overlay').classList.add('hidden');
       setSyncLoading('Cargando datos…');
-      cargarTodo().then(setSyncOk).catch(() => {
-        sessionStorage.removeItem('volta_token');
-        document.getElementById('auth-overlay').classList.remove('hidden');
-      });
+      cargarTodo()
+        .then(() => { setSyncOk(); return entrarSegunCuenta(); })
+        .catch((e) => { mostrarErrorCarga(e); });
     }
   }
-  function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
+  // Si a los 25s Google todavía no cargó (red muy lenta o bloqueada), avisar en vez de
+  // dejar el botón "Cargando…" para siempre sin explicación. 25s (no 12s) porque abrir la
+  // PWA instalada desde cero (proceso de Chrome recién arrancando) tarda más que una
+  // pestaña normal en un Chrome que ya está corriendo.
+  const authInitTimeout = setTimeout(() => {
+    if (gapiReady && gisReady) return;
+    document.getElementById('btn-login-txt').textContent = 'Ingresar con Google';
+    document.getElementById('btn-login').disabled = false;
+    const el = document.getElementById('auth-data-err');
+    el.innerHTML = 'El inicio de sesión de Google está tardando en cargar. Puede ser tu conexión, que algo (antivirus, firewall de red) esté bloqueando accounts.google.com, o que estés dentro del navegador de otra app (WhatsApp, Instagram, etc.) — en ese caso, abrí este link en Chrome o Safari directamente.<br><br><button class="btn-sec" onclick="location.reload()" style="font-size:12px;padding:6px 14px;">Reintentar</button>';
+    el.classList.add('show');
+    el.dataset.kind = 'timeout';
+  }, 25000);
+  // 'select_account' hace que Google muestre siempre el selector de cuentas, en vez de entrar
+  // solo con la última usada. Así quien tiene dos cuentas (Graciela: la suya y la de
+  // administración) elige cada vez. Para cambiar de cuenta alcanza con cerrar y volver a abrir.
+  function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'select_account consent' }); }
   function showAuthErr() { document.getElementById('auth-err').classList.add('show'); }
+
+  // ─── IDENTIFICACIÓN DE LA CUENTA ──────────────────────────────
+  // Normaliza un email para compararlo: minúsculas y sin espacios. En Gmail además los
+  // puntos de la parte local no cuentan (juan.perez@gmail.com == juanperez@gmail.com), ni lo
+  // que va después de un '+'; así un mail cargado con o sin puntos en la base igual coincide.
+  function normalizarEmail(e) {
+    e = String(e || '').trim().toLowerCase();
+    const at = e.lastIndexOf('@');
+    if (at < 1) return e;
+    let local = e.slice(0, at), dominio = e.slice(at + 1);
+    if (dominio === 'gmail.com' || dominio === 'googlemail.com') {
+      local = local.split('+')[0].replace(/\./g, '');
+      dominio = 'gmail.com';
+    }
+    return local + '@' + dominio;
+  }
+  // Pide a Google el email de la cuenta con la que se inició sesión (necesita 'openid email').
+  async function obtenerEmailCuenta() {
+    const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!resp.ok) throw new Error('userinfo ' + resp.status);
+    const info = await resp.json();
+    if (!info.email || info.email_verified === false) throw new Error('email no verificado');
+    return info.email;
+  }
+  // Decide a dónde entra la cuenta. Devuelve { modo, prof }:
+  //   'admin'        → la cuenta de administración
+  //   'profesional'  → el email coincide con el de un profesional activo (prof = ese registro)
+  //   'no-habilitado'→ cualquier otro caso
+  function resolverAcceso(email, profesionales) {
+    const e = normalizarEmail(email);
+    if (!e) return { modo: 'no-habilitado', prof: null };
+    if (e === normalizarEmail(ADMIN_EMAIL)) return { modo: 'admin', prof: null };
+    const matches = profesionales.filter(p => p.estado !== 'inactivo' && p.mail && normalizarEmail(p.mail) === e);
+    if (matches.length > 1) console.warn('Más de un profesional activo con el mail ' + email + '; se usa el primero.');
+    if (matches.length) return { modo: 'profesional', prof: matches[0] };
+    return { modo: 'no-habilitado', prof: null };
+  }
+  async function entrarSegunCuenta() {
+    try {
+      emailCuenta = await obtenerEmailCuenta();
+    } catch (e) {
+      console.error('No se pudo identificar la cuenta:', e);
+      volverALogin('No se pudo identificar con qué cuenta ingresaste. Volvé a ingresar con Google.');
+      return;
+    }
+    document.getElementById('user-email').textContent = emailCuenta;
+    document.getElementById('btn-salir').classList.remove('hidden');
+    const acceso = resolverAcceso(emailCuenta, db.profesionales);
+    modoSesion = acceso.modo === 'no-habilitado' ? null : acceso.modo;
+    if (acceso.modo === 'admin') { goAdmin(); return; }
+    if (acceso.modo === 'profesional') { selectProf(db.profesionales.indexOf(acceso.prof)); return; }
+    profesionalActivo = null;
+    document.getElementById('home-msg').innerHTML =
+      '<div class="panel-title" style="margin-bottom:8px;">Cuenta no habilitada</div>' +
+      '<div class="panel-sub" style="margin-bottom:1rem;">La cuenta <strong>' + esc(emailCuenta) + '</strong> no está registrada como profesional de Volta. ' +
+      'Si es tu cuenta, pedile a administración que la cargue en tu ficha. Si te equivocaste de cuenta, ingresá con la correcta.</div>' +
+      '<button class="btn-sec" onclick="volverALogin()">Ingresar con otra cuenta</button>';
+    goScreen('screen-home');
+  }
+  // Botón "Salir": cierra la sesión de Volta (no la de Google en el dispositivo).
+  function salir() { volverALogin(); setSyncErr('Sesión cerrada'); }
+  // Olvida el token y vuelve a la pantalla de ingreso (opcionalmente con un mensaje).
+  function volverALogin(msg) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    try { if (accessToken && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(accessToken, () => {}); } catch(e) {}
+    accessToken = null; modoSesion = null; profesionalActivo = null; emailCuenta = '';
+    try { gapi.client.setToken(null); } catch(e) {}
+    document.getElementById('user-email').textContent = '';
+    document.getElementById('btn-salir').classList.add('hidden');
+    document.getElementById('home-msg').textContent = 'Identificando la cuenta…';
+    goScreen('screen-home');
+    const el = document.getElementById('auth-data-err');
+    if (msg) { el.textContent = msg; el.classList.add('show'); } else { el.textContent = ''; el.classList.remove('show'); }
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    setSyncErr('Sin sesión');
+  }
+
+  // Clasifica el error de carga de datos y muestra un mensaje accionable, en vez de dejar
+  // la pantalla vacía sin explicación. Nota: para archivos de Google sin permiso, la API
+  // suele devolver 404 (no 403) para no revelar si el archivo existe o no — por eso acá
+  // tratamos ambos códigos como "problema de acceso", no como errores distintos.
+  function mostrarErrorCarga(err) {
+    console.error('Error al cargar datos de Volta:', err);
+    // Junta el código de error venga como venga: gapi a veces lo da como número (403),
+    // a veces como texto ('PERMISSION_DENIED'/'NOT_FOUND'), y a veces solo dentro de result.error.
+    const code = err && (
+      err.status ||
+      (err.result && err.result.error && (err.result.error.code || err.result.error.status)) ||
+      err.code
+    );
+    const esErrorAcceso = code===403 || code===404 || code==='PERMISSION_DENIED' || code==='NOT_FOUND' || code==='FORBIDDEN';
+    // Un error de red "puro" (sin respuesta del servidor) llega como TypeError con mensaje de fetch.
+    // Si NO es claramente eso Y tampoco pudimos identificarlo como error de acceso, no asumimos
+    // "problema de conexión" a ciegas — mostramos el detalle crudo para poder diagnosticarlo.
+    const esErrorRedPuro = !code && err instanceof TypeError && /fetch|network|failed/i.test(err.message||'');
+    let msg;
+    if (esErrorAcceso) {
+      msg = 'Esta cuenta de Google no tiene acceso a la planilla de datos de Volta (o no es la cuenta correcta). Verificá que sea la cuenta indicada por administración, o pedí que te den acceso, y volvé a intentar.';
+    } else if (esErrorRedPuro) {
+      msg = 'No se pudieron cargar los datos. Revisá tu conexión a internet y volvé a intentar.';
+    } else {
+      const detalle = (err && (err.message || (err.result && err.result.error && err.result.error.message))) || 'sin más detalle';
+      msg = 'No se pudieron cargar los datos. Puede ser un problema de acceso a la planilla o de conexión. Si persiste, avisá a administración con este detalle: "' + detalle + '"' + (code ? ' (código '+code+')' : '');
+    }
+    const el = document.getElementById('auth-data-err');
+    el.textContent = msg;
+    el.classList.add('show');
+    sessionStorage.removeItem(TOKEN_KEY);
+    accessToken = null;
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    setSyncErr('Sin datos');
+  }
 
   // ─── SYNC UI ──────────────────────────────────────────────────
   function setSyncLoading(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot loading'; t.textContent=msg||'Sincronizando…'; }
-  function setSyncOk() { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot ok'; t.textContent='Sincronizado '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); if(accessToken) sessionStorage.setItem('volta_token',accessToken); }
+  function setSyncOk() { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot ok'; t.textContent='Sincronizado '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); if(accessToken) sessionStorage.setItem(TOKEN_KEY,accessToken); }
   function setSyncErr(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot err'; t.textContent=msg||'Error al sincronizar'; }
 
   // ─── SHEETS HELPERS ───────────────────────────────────────────
   async function sheetGet(range) { const r=await gapi.client.sheets.spreadsheets.values.get({spreadsheetId:SHEET_ID,range}); return r.result.values||[]; }
   async function sheetAppend(sheet,values) { await gapi.client.sheets.spreadsheets.values.append({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:[values]}}); }
+  // ⚠ sheetClear/sheetWrite reescriben la hoja ENTERA — es el patrón que causaba pérdida de
+  // datos entre sesiones concurrentes (ver v11). Ya no se usan en ningún flujo normal de la
+  // app; quedan solo como herramienta de emergencia para reparar datos a mano si hiciera
+  // falta. No usar para altas/ediciones/bajas — usar sheetAppend/sheetUpdateRow.
   async function sheetClear(sheet) { await gapi.client.sheets.spreadsheets.values.clear({spreadsheetId:SHEET_ID,range:sheet+'!A1:Z10000'}); }
   async function sheetWrite(sheet,rows) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A1',valueInputOption:'RAW',resource:{values:rows}}); }
 
   // ─── DRIVE HELPERS ────────────────────────────────────────────
   // Busca una carpeta por nombre dentro de un padre; la crea si no existe. Devuelve su id.
   async function driveGetOrCreateFolder(nombre, parentId) {
+    // Resguardo: con el permiso drive.file cada cuenta solo ve las carpetas que la app creó
+    // con ESA cuenta. Si otra cuenta llegara acá, crearía carpetas nuevas en su Drive personal
+    // y los archivos quedarían ahí. Por eso solo la cuenta de administración crea o sube.
+    if (modoSesion !== 'admin') throw new Error('Solo la cuenta de administración puede subir documentos.');
     const safe = nombre.replace(/'/g,"\\'");
     let q = `mimeType='application/vnd.google-apps.folder' and name='${safe}' and trashed=false`;
     if (parentId) q += ` and '${parentId}' in parents`;
@@ -923,6 +1160,7 @@
   }
   // Sube un File del navegador a la carpeta indicada. Devuelve {id, webViewLink, name}.
   async function driveSubirArchivo(file, folderId) {
+    if (modoSesion !== 'admin') throw new Error('Solo la cuenta de administración puede subir documentos.');
     const metadata = { name: file.name, parents: [folderId] };
     const boundary = '-------volta'+Date.now();
     const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${file.type||'application/octet-stream'}\r\n\r\n`;
@@ -945,19 +1183,19 @@
   // ─── CARGA INICIAL ────────────────────────────────────────────
   async function cargarTodo() {
     const [pRows,prRows,pacRows,vRows,sesRows,docRows,docPacRows,ctrRows,espRows] = await Promise.all([
-      sheetGet('Prestadores!A2:F'), sheetGet('Profesionales!A2:D'),
+      sheetGet('Prestadores!A2:G'), sheetGet('Profesionales!A2:E'),
       sheetGet('Pacientes!A2:F'), sheetGet('Vinculos!A2:N'),
-      sheetGet('Sesiones!A2:F'), sheetGet('Documentos!A2:E'),
-      sheetGet('DocumentosPacientes!A2:E'), sheetGet('Contratos!A2:C'),
+      sheetGet('Sesiones!A2:G'), sheetGet('Documentos!A2:F'),
+      sheetGet('DocumentosPacientes!A2:F'), sheetGet('Contratos!A2:D'),
       sheetGet('Especialidades!A2:A')
     ]);
     db.prestadores = [
       { nombre:'PARTICULAR', tipo:'fijo' },
       { nombre:'BPS', tipo:'fijo' }
     ];
-    pRows.forEach(r => { if(r[0]) db.prestadores.push({nombre:r[0],tipo:'comun',dir:r[1]||'',contacto:r[2]||'',tel:r[3]||'',mail:r[4]||'',tickets:(r[5]||'').trim().toLowerCase()==='si'||(r[5]||'').trim().toLowerCase()==='sí'}); });
+    pRows.forEach(r => { if(r[0]) db.prestadores.push({nombre:r[0],tipo:'comun',dir:r[1]||'',contacto:r[2]||'',tel:r[3]||'',mail:r[4]||'',tickets:(r[5]||'').trim().toLowerCase()==='si'||(r[5]||'').trim().toLowerCase()==='sí',estado:(r[6]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}); });
 
-    db.profesionales = prRows.filter(r=>r[0]).map(r=>({nombre:r[0],esp:r[1]||'',tel:r[2]||'',mail:r[3]||''}));
+    db.profesionales = prRows.filter(r=>r[0]).map(r=>({nombre:r[0],esp:r[1]||'',tel:r[2]||'',mail:r[3]||'',estado:(r[4]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     db.pacientes = pacRows.filter(r=>r[0]).map(r=>({nombre:r[0],ci:r[1]||'',tutor:r[2]||'',tutorTel:r[3]||'',tutorMail:r[4]||'',fechaNac:r[5]||''}));
 
@@ -974,59 +1212,54 @@
       return v;
     });
 
-    // Contratos cols: Prestador, Especialidad, Monto
-    db.contratos = ctrRows.filter(r=>r[0]).map(r=>({prestador:r[0],especialidad:r[1]||'',monto:r[2]||''}));
+    // Contratos cols: Prestador, Especialidad, Monto, Estado
+    db.contratos = ctrRows.filter(r=>r[0]).map(r=>({prestador:r[0],especialidad:r[1]||'',monto:r[2]||'',estado:(r[3]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     db.especialidades = espRows.filter(r=>r[0]).map(r=>r[0]);
     populateEspecialidadSelects();
 
-    db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',obs:r[4]||'',ticket:(r[5]||'').trim().toLowerCase()==='si'}));
+    // Sesiones cols: Nombre, Profesional, Fecha, Hora(sin uso), Observaciones, Ticket, Doble
+    // "Doble" = sesión doble (dos horas seguidas registradas como una sola fila) — cuenta como 2 en el reporte de honorarios.
+    db.sesiones = sesRows.filter(r=>r[0]).map(r=>({paciente:r[0],profesional:r[1]||'',fecha:r[2]||'',obs:r[4]||'',ticket:(r[5]||'').trim().toLowerCase()==='si',doble:(r[6]||'').trim().toLowerCase()==='si'}));
 
-    // Documentos cols: Profesional, Nombre, Link, FileId, Fecha
-    db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+    // Documentos cols: Profesional, Nombre, Link, FileId, Fecha, Estado
+    db.documentos = docRows.filter(r=>r[0]).map(r=>({profesional:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
-    // DocumentosPacientes cols: Paciente, Nombre, Link, FileId, Fecha
-    db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||''}));
+    // DocumentosPacientes cols: Paciente, Nombre, Link, FileId, Fecha, Estado
+    db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     populateAllSelects();
-    renderProfList();
     updateCounts();
     ['prestadores','profesionales','pacientes','contratos'].forEach(k=>renderQ(k,''));
   }
 
-  // ─── GUARDAR SHEETS ───────────────────────────────────────────
-  async function guardarPrestadores() {
-    const header=[['Nombre','Dirección','Contacto','Teléfono','Mail','Tickets']];
-    const rows=db.prestadores.filter(p=>p.tipo==='comun').map(p=>[p.nombre,p.dir,p.contacto,p.tel,p.mail,p.tickets?'Si':'No']);
-    await sheetClear('Prestadores'); await sheetWrite('Prestadores',[...header,...rows]);
-  }
-  async function guardarContratos() {
-    const header=[['Prestador','Especialidad','Monto']];
-    const rows=db.contratos.map(c=>[c.prestador,c.especialidad,c.monto]);
-    await sheetClear('Contratos'); await sheetWrite('Contratos',[...header,...rows]);
-  }
-  async function guardarProfesionales() {
-    const header=[['Nombre','Especialidad','Teléfono','Mail']];
-    const rows=db.profesionales.map(p=>[p.nombre,p.esp,p.tel,p.mail]);
-    await sheetClear('Profesionales'); await sheetWrite('Profesionales',[...header,...rows]);
-  }
-  async function guardarPacientes() {
-    const header=[['Nombre','Identificacion','Tutor','TutorTel','TutorMail','FechaNacimiento']];
-    const rows=db.pacientes.map(p=>[p.nombre,p.ci,p.tutor,p.tutorTel,p.tutorMail,p.fechaNac||'']);
-    await sheetClear('Pacientes'); await sheetWrite('Pacientes',[...header,...rows]);
-  }
-  async function guardarVinculos() {
-    const header=[['Paciente','Profesional','Prestador','Tipo','FechaInicio','Dia','Hora','Sesiones','FechaOrigen','FechaFin','Periodicidad','Estado','FechaCierre','Monto']];
-    const rows=db.vinculos.map(v=>[v.paciente,v.profesional,v.prestador,v.tipo,v.fechaInicio,v.dia,v.hora,v.sesiones||'',v.fechaOrigen||'',v.fechaFin||'',v.periodicidad||'',v.estado||'activo',v.fechaCierre||'',v.monto||'']);
-    await sheetClear('Vinculos'); await sheetWrite('Vinculos',[...header,...rows]);
-  }
+  // ─── FILAS POR REGISTRO (para altas por append y ediciones por fila puntual) ──
+  function filaPrestador(p) { return [p.nombre,p.dir||'',p.contacto||'',p.tel||'',p.mail||'',p.tickets?'Si':'No',p.estado||'activo']; }
+  function filaProfesional(p) { return [p.nombre,p.esp||'',p.tel||'',p.mail||'',p.estado||'activo']; }
+  function filaPaciente(p) { return [p.nombre,p.ci||'',p.tutor||'',p.tutorTel||'',p.tutorMail||'',p.fechaNac||'']; }
+  function filaVinculo(v) { return [v.paciente,v.profesional,v.prestador,v.tipo,v.fechaInicio,v.dia,v.hora,v.sesiones||'',v.fechaOrigen||'',v.fechaFin||'',v.periodicidad||'',v.estado||'activo',v.fechaCierre||'',v.monto||'']; }
+  function filaContrato(c) { return [c.prestador,c.especialidad,c.monto,c.estado||'activo']; }
+  function filaDocumento(d) { return [d.profesional,d.nombre,d.link,d.fileId,d.fecha,d.estado||'activo']; }
+  function filaDocPaciente(d) { return [d.paciente,d.nombre,d.link,d.fileId,d.fecha,d.estado||'activo']; }
+  // Número de fila real en la hoja para un registro que ya está cargado en el array
+  // correspondiente. Válido mientras nunca se hagan borrados físicos ni reordenamientos
+  // locales — por eso las bajas son lógicas (columna Estado) y las altas siempre van al
+  // final (push local + append remoto), igual que ya hacía Sesiones.
+  function filaDe(arr, registro) { const i = arr.indexOf(registro); return i < 0 ? null : i + 2; }
+  // Prestadores es un caso especial: db.prestadores tiene 2 entradas sintéticas al principio
+  // (PARTICULAR y BPS, que no son filas reales de la sheet) — así que el índice real de fila
+  // NO es índice+2 como en las demás tablas, sino directamente el índice (el corrimiento de 2
+  // por esas entradas sintéticas cancela el corrimiento de 2 por la fila de encabezado).
+  function filaDePrestador(p) { const i = db.prestadores.indexOf(p); return i < 2 ? null : i; }
+  function activos(arr) { return arr.filter(r => r.estado !== 'inactivo'); }
+
   // ─── ABM CONTRATOS ────────────────────────────────────────────
   function populateCtrPrestSelect() {
     const sel = document.getElementById('ctr-prestador');
     if (!sel) return;
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Seleccionar —</option>';
-    db.prestadores.filter(p=>p.nombre!=='PARTICULAR').forEach(p=>{
+    activos(db.prestadores).filter(p=>p.nombre!=='PARTICULAR').forEach(p=>{
       const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; sel.appendChild(o);
     });
     if (cur) sel.value = cur;
@@ -1063,29 +1296,38 @@
     if (!ok) return;
     const prestador=getVal('ctr-prestador'), especialidad=getVal('ctr-especialidad'), monto=getVal('ctr-monto');
     const existente = db.contratos.find(c=>c.prestador===prestador && c.especialidad.toLowerCase()===especialidad.toLowerCase());
-    if (existente) existente.monto = monto;
-    else db.contratos.push({prestador,especialidad,monto});
+    let registro, esNuevo;
+    if (existente) { existente.monto = monto; existente.estado = 'activo'; registro = existente; esNuevo = false; }
+    else { registro = {prestador,especialidad,monto,estado:'activo'}; db.contratos.push(registro); esNuevo = true; }
     document.getElementById('contratos-ok').classList.add('show');
     renderContratosTable();
     const btn=document.getElementById('btn-contratos');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try {
+      if (esNuevo) { await sheetAppend('Contratos', filaContrato(registro)); }
+      else { const fila = filaDe(db.contratos, registro); if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(registro)); }
+      setSyncOk(); updateCounts();
+    } catch(e){ setSyncErr('Error al guardar'); }
     btn.disabled=false; btn.textContent='Guardar contrato';
     setTimeout(()=>resetCtrForm(), 1000);
   }
   function renderContratosTable() {
     const tbody = document.getElementById('tbody-ctr');
     if (!tbody) return;
-    tbody.innerHTML = db.contratos.length
-      ? db.contratos.map((c,idx)=>`<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td><td><button class="btn-sec" style="padding:5px 10px;font-size:12px;" onclick="eliminarContrato(${idx})">Quitar</button></td></tr>`).join('')
+    const lista = activos(db.contratos);
+    tbody.innerHTML = lista.length
+      ? lista.map(c=>{const idx=db.contratos.indexOf(c);return `<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td><td><button class="btn-sec" style="padding:5px 10px;font-size:12px;" onclick="eliminarContrato(${idx})">Quitar</button></td></tr>`;}).join('')
       : `<tr><td colspan="4" class="empty-state">Sin contratos cargados</td></tr>`;
   }
   async function eliminarContrato(idx) {
-    db.contratos.splice(idx,1);
+    const c = db.contratos[idx];
+    if (!c) return;
+    const fila = filaDe(db.contratos, c);
+    c.estado = 'inactivo';
     renderContratosTable();
     setSyncLoading('Guardando…');
-    try { await guardarContratos(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try { if (fila) await sheetUpdateRow('Contratos', fila, filaContrato(c)); setSyncOk(); updateCounts(); } catch(e){ setSyncErr('Error al guardar'); }
   }
 
   // ─── ABM ESPECIALIDADES ───────────────────────────────────────
@@ -1103,11 +1345,6 @@
       ? db.especialidades.map(e=>`<tr><td>${esc(e)}</td></tr>`).join('')
       : `<tr><td class="empty-state">Sin especialidades cargadas</td></tr>`;
   }
-  async function guardarEspecialidades() {
-    const header=[['Nombre']];
-    const rows=db.especialidades.map(e=>[e]);
-    await sheetClear('Especialidades'); await sheetWrite('Especialidades',[...header,...rows]);
-  }
   async function submitEspecialidad() {
     const nombre = getVal('esp-nombre');
     if (!nombre) { showFErr('esp-nombre','Ingresá el nombre de la especialidad.'); return; }
@@ -1121,25 +1358,15 @@
     const btn=document.getElementById('btn-especialidades');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await guardarEspecialidades(); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
+    try { await sheetAppend('Especialidades', [nombre]); setSyncOk(); } catch(e){ setSyncErr('Error al guardar'); }
     btn.disabled=false; btn.textContent='Agregar';
     setTimeout(()=>document.getElementById('especialidades-ok').classList.remove('show'), 1500);
   }
 
-  async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,'',ses.obs,ses.ticket?'Si':'No']); }
+  async function guardarSesionSheet(ses) { await sheetAppend('Sesiones',[ses.paciente,ses.profesional,ses.fecha,'',ses.obs,ses.ticket?'Si':'No',ses.doble?'Si':'No']); }
   async function sheetUpdateRow(sheet, rowNum, values) { await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:SHEET_ID,range:sheet+'!A'+rowNum+':'+String.fromCharCode(65+values.length-1)+rowNum,valueInputOption:'RAW',resource:{values:[values]}}); }
-  async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos',[doc.profesional,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
-  async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes',[doc.paciente,doc.nombre,doc.link,doc.fileId,doc.fecha]); }
-  async function guardarDocumentosSheet() {
-    const header=[['Profesional','Nombre','Link','FileId','Fecha']];
-    const rows=db.documentos.map(d=>[d.profesional,d.nombre,d.link,d.fileId,d.fecha]);
-    await sheetClear('Documentos'); await sheetWrite('Documentos',[...header,...rows]);
-  }
-  async function guardarDocPacientesSheet() {
-    const header=[['Paciente','Nombre','Link','FileId','Fecha']];
-    const rows=db.docsPacientes.map(d=>[d.paciente,d.nombre,d.link,d.fileId,d.fecha]);
-    await sheetClear('DocumentosPacientes'); await sheetWrite('DocumentosPacientes',[...header,...rows]);
-  }
+  async function guardarDocumentoSheet(doc) { await sheetAppend('Documentos', filaDocumento(doc)); }
+  async function guardarDocPacienteSheet(doc) { await sheetAppend('DocumentosPacientes', filaDocPaciente(doc)); }
 
   // ─── SELECTS GLOBALES ─────────────────────────────────────────
   function populateAllSelects() {
@@ -1153,7 +1380,7 @@
     document.querySelectorAll('.sel-prest').forEach(sel => {
       const cur = sel.value;
       sel.innerHTML = '<option value="">— Seleccionar prestador —</option>';
-      db.prestadores.forEach(p => {
+      activos(db.prestadores).forEach(p => {
         const o = document.createElement('option');
         o.value = p.nombre; o.textContent = p.nombre; sel.appendChild(o);
       });
@@ -1164,7 +1391,7 @@
     document.querySelectorAll('.sel-prof').forEach(sel => {
       const cur = sel.value;
       sel.innerHTML = '<option value="">— Seleccionar profesional —</option>';
-      db.profesionales.forEach(p => {
+      activos(db.profesionales).forEach(p => {
         const o = document.createElement('option');
         o.value = p.nombre; o.textContent = p.nombre + (p.esp ? ' ('+p.esp+')' : ''); sel.appendChild(o);
       });
@@ -1184,9 +1411,18 @@
   }
 
   // ─── HORARIOS ─────────────────────────────────────────────────
-  function horariosOpts() {
-    let opts = '<option value="">— Seleccionar —</option>';
-    for (let h=7;h<=21;h++) ['00','15','30','45'].forEach(m=>{opts+=`<option value="${String(h).padStart(2,'0')}:${m}">${String(h).padStart(2,'0')}:${m}</option>`;});
+  // Hora y minutos se muestran en selects separados: la duración de la sesión
+  // varía según especialidad (40' psicólogos, 45' el resto), así que el minuto
+  // de inicio no siempre cae en la vieja grilla de 15'. Con pasos de 5' se
+  // puede representar el horario real de cualquier profesional.
+  function horasOpts() {
+    let opts = '<option value="">— Hora —</option>';
+    for (let h=7;h<=21;h++) opts+=`<option value="${String(h).padStart(2,'0')}">${String(h).padStart(2,'0')}</option>`;
+    return opts;
+  }
+  function minutosOpts() {
+    let opts = '';
+    ['00','05','10','15','20','25','30','35','40','45','50','55'].forEach(m=>{opts+=`<option value="${m}">${m}</option>`;});
     return opts;
   }
 
@@ -1230,14 +1466,20 @@
         <option>Lunes</option><option>Martes</option><option>Miércoles</option>
         <option>Jueves</option><option>Viernes</option><option>Sábado</option>
       </select>
-      <select class="hr-hora">${horariosOpts()}</select>
+      <select class="hr-hh">${horasOpts()}</select>
+      <span class="hr-sep">:</span>
+      <select class="hr-mm">${minutosOpts()}</select>
       <button type="button" class="btn-rm-horario" title="Quitar horario">×</button>`;
     if (dia) row.querySelector('.hr-dia').value=dia;
-    if (hora) row.querySelector('.hr-hora').value=hora;
+    if (hora) {
+      const [hh,mm]=hora.split(':');
+      if (hh) row.querySelector('.hr-hh').value=hh;
+      if (mm) row.querySelector('.hr-mm').value=mm;
+    }
     row.querySelector('.btn-rm-horario').addEventListener('click',()=>{
       const rows=cont.querySelectorAll('.horario-row');
       if (rows.length>1) row.remove();
-      else { row.querySelector('.hr-dia').value=''; row.querySelector('.hr-hora').value=''; }
+      else { row.querySelector('.hr-dia').value=''; row.querySelector('.hr-hh').value=''; row.querySelector('.hr-mm').value='00'; }
     });
     cont.appendChild(row);
   }
@@ -1245,9 +1487,10 @@
   function readHorarios(prefix) {
     const cont=document.getElementById(prefix+'-horarios');
     if (!cont) return [];
-    return [...cont.querySelectorAll('.horario-row')].map(r=>({
-      dia:r.querySelector('.hr-dia').value, hora:r.querySelector('.hr-hora').value
-    })).filter(x=>x.dia||x.hora);
+    return [...cont.querySelectorAll('.horario-row')].map(r=>{
+      const hh=r.querySelector('.hr-hh').value, mm=r.querySelector('.hr-mm').value;
+      return { dia:r.querySelector('.hr-dia').value, hora: hh ? `${hh}:${mm||'00'}` : '' };
+    }).filter(x=>x.dia||x.hora);
   }
 
   // ─── VÍNCULO FORM BUILDER ─────────────────────────────────────
@@ -1333,11 +1576,15 @@
     if (removable && removeCallback) {
       div.querySelector('.btn-rm-vinculo').addEventListener('click', removeCallback);
     }
-    // Populate selects
+    // Populate selects (activos, más el actual si quedó inactivo después de creado el vínculo)
     const profSel = div.querySelector(`#${prefix}-prof`);
-    db.profesionales.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); profSel.appendChild(o); });
+    const profsOpts = activos(db.profesionales).slice();
+    if (d.profesional && !profsOpts.some(p=>p.nombre===d.profesional)) { const ex=db.profesionales.find(p=>p.nombre===d.profesional); if (ex) profsOpts.push(ex); }
+    profsOpts.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); profSel.appendChild(o); });
     const prestSel = div.querySelector(`#${prefix}-prest`);
-    db.prestadores.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
+    const prestOpts = activos(db.prestadores).slice();
+    if (d.prestador && !prestOpts.some(p=>p.nombre===d.prestador)) { const ex=db.prestadores.find(p=>p.nombre===d.prestador); if (ex) prestOpts.push(ex); }
+    prestOpts.forEach(p => { const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre; prestSel.appendChild(o); });
     // Pre-fill if data provided
     if (d.profesional) profSel.value = d.profesional;
     if (d.prestador) { prestSel.value = d.prestador; setTimeout(()=>onVinculoPrestChange(prefix),0); }
@@ -1454,7 +1701,8 @@
       showFErr('pac-nombre','Ya existe un paciente con ese nombre.'); return;
     }
     db.pacientes.push(pac);
-    vinculosData.forEach(v => db.vinculos.push({ paciente: pac.nombre, ...v }));
+    const nuevosVinculos = vinculosData.map(v => ({ paciente: pac.nombre, ...v }));
+    nuevosVinculos.forEach(v => db.vinculos.push(v));
 
     document.getElementById('pacientes-ok-txt').textContent = 'Paciente dado de alta con '+vinculosData.length+' vínculo(s).';
     document.getElementById('pacientes-ok').classList.add('show');
@@ -1463,7 +1711,11 @@
     const btn = document.getElementById('btn-pacientes');
     btn.disabled=true; btn.textContent='Guardando…';
     setSyncLoading('Guardando…');
-    try { await Promise.all([guardarPacientes(), guardarVinculos()]); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    try {
+      await sheetAppend('Pacientes', filaPaciente(pac));
+      for (const v of nuevosVinculos) await sheetAppend('Vinculos', filaVinculo(v));
+      setSyncOk();
+    } catch(e){setSyncErr('Error al guardar');}
     btn.disabled=false; btn.textContent='Registrar alta';
     setTimeout(()=>resetF('pacientes'), 1000);
   }
@@ -1501,13 +1753,14 @@
     clearFErr('valt-paciente');
     const v = readVinculoFields(valtPrefix);
     if (!v) return;
-    db.vinculos.push({ paciente: pacNombre, ...v });
+    const nuevo = { paciente: pacNombre, ...v };
+    db.vinculos.push(nuevo);
     document.getElementById('vinculos-alta-ok').classList.add('show');
     updateCounts();
     const btn=document.querySelector('#abm-vinculos .btn-pri.alta');
     if(btn){btn.disabled=true;btn.textContent='Guardando…';}
     setSyncLoading('Guardando…');
-    try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
+    try { await sheetAppend('Vinculos', filaVinculo(nuevo)); setSyncOk(); } catch(e){setSyncErr('Error al guardar');}
     if(btn){btn.disabled=false;btn.textContent='Registrar vínculo';}
     setTimeout(()=>{ resetVinculoForm(); document.getElementById('vinculos-alta-ok').classList.remove('show'); }, 1500);
   }
@@ -1521,13 +1774,20 @@
       ['p-nombre','p-dir','p-contacto','p-tel','p-mail'].forEach(req);
       if (!ok) return;
       const nombre=getVal('p-nombre');
-      if (db.prestadores.find(p=>p.nombre===nombre)) { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
+      const existente = db.prestadores.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('p-nombre','Ya existe un prestador con ese nombre.'); return; }
       const datos={dir:getVal('p-dir'),contacto:getVal('p-contacto'),tel:getVal('p-tel'),mail:getVal('p-mail'),tickets:document.getElementById('p-tickets').checked};
-      db.prestadores.push({nombre,tipo:'comun',...datos});
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,tipo:'comun',estado:'activo',...datos}; db.prestadores.push(registro); esNuevo = true; }
       document.getElementById('prestadores-ok').classList.add('show');
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
-      try { await guardarPrestadores(); setSyncOk(); populateAllSelects(); } catch(e){setSyncErr();}
+      try {
+        if (esNuevo) { await sheetAppend('Prestadores', filaPrestador(registro)); }
+        else { const fila=filaDePrestador(registro); if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(registro)); }
+        setSyncOk(); populateAllSelects(); renderQ('prestadores',''); updateCounts();
+      } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     } else if (form==='profesionales') {
       ['pr-nombre','pr-esp','pr-tel','pr-mail'].forEach(req);
@@ -1535,17 +1795,20 @@
       if(mail&&!isValidEmail(mail)){showFErr('pr-mail','Mail inválido.');ok=false;}
       if (!ok) return;
       const nombre=getVal('pr-nombre');
-      if (db.profesionales.find(p=>p.nombre===nombre)) { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
+      const existente = db.profesionales.find(p=>p.nombre===nombre);
+      if (existente && existente.estado!=='inactivo') { showFErr('pr-nombre','Ya existe un profesional con ese nombre.'); return; }
       const datos={esp:getVal('pr-esp'),tel:getVal('pr-tel'),mail};
-      db.profesionales.push({nombre,...datos});
+      let registro, esNuevo;
+      if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
+      else { registro = {nombre,estado:'activo',...datos}; db.profesionales.push(registro); esNuevo = true; }
       document.getElementById('profesionales-ok').classList.add('show');
-      renderProfList();
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
       try {
-        await guardarProfesionales();
+        if (esNuevo) { await sheetAppend('Profesionales', filaProfesional(registro)); }
+        else { const fila=filaDe(db.profesionales, registro); if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(registro)); }
         try { await driveCarpetaProfesional(nombre); } catch(de){ console.warn('No se pudo crear carpeta Drive:', de); }
-        setSyncOk(); populateAllSelects();
+        setSyncOk(); populateAllSelects(); renderQ('profesionales',''); updateCounts();
       } catch(e){setSyncErr();}
       btn.disabled=false; btn.textContent='Registrar alta';
     }
@@ -1572,30 +1835,14 @@
 
   // ─── NAVEGACIÓN ───────────────────────────────────────────────
   function goScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-  const ADMIN_PASSWORD = 'Voltalabarra';
-  let adminUnlocked = false;
+  // Ya no hay clave: a Administración solo se llega si la cuenta es la de administración.
   function goAdmin() {
-    if (!adminUnlocked) {
-      document.getElementById('admin-pass-input').value='';
-      document.getElementById('admin-pass-err').classList.remove('show');
-      goScreen('screen-admin-pass');
-      setTimeout(()=>document.getElementById('admin-pass-input').focus(),50);
-      return;
-    }
+    if (modoSesion !== 'admin') return;
     updateCounts(); ['prestadores','profesionales','pacientes','contratos'].forEach(k=>renderQ(k,''));
     goScreen('screen-admin');
     // Asegurar que ABM esté activo y su primer sub-tab también
     const abmTab=document.getElementById('tab-abm');
     if(abmTab&&!abmTab.classList.contains('active')) switchMain('abm',abmTab);
-  }
-  function checkAdminPassword() {
-    const val = document.getElementById('admin-pass-input').value;
-    if (val === ADMIN_PASSWORD) { adminUnlocked = true; goAdmin(); }
-    else {
-      document.getElementById('admin-pass-err').classList.add('show');
-      document.getElementById('admin-pass-input').value='';
-      document.getElementById('admin-pass-input').focus();
-    }
   }
   function switchMain(id, el) {
     document.querySelectorAll('.main-section').forEach(s=>s.classList.remove('active'));
@@ -1615,13 +1862,8 @@
   }
 
   // ─── PROFESIONALES ────────────────────────────────────────────
-  function renderProfList() {
-    const list=document.getElementById('prof-list');
-    list.innerHTML=db.profesionales.map((p,i)=>{
-      const ini=p.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
-      return `<div class="prof-item" onclick="selectProf(${i})"><div class="prof-avatar">${ini}</div><div><div class="prof-item-name">${esc(p.nombre)}</div><div class="prof-item-esp">${esc(p.esp)}</div></div></div>`;
-    }).join('');
-  }
+  // Entra al menú del profesional i. Ya no se elige de una lista: lo llama entrarSegunCuenta()
+  // con el profesional cuyo mail coincide con la cuenta.
   function selectProf(i) {
     profesionalActivo=db.profesionales[i];
     const ini=profesionalActivo.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
@@ -1638,7 +1880,7 @@
     goScreen('screen-documentos');
   }
   function renderDocsProfRO() {
-    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre);
+    const docs = db.documentos.filter(d => d.profesional === profesionalActivo.nombre && d.estado !== 'inactivo');
     const tb = document.getElementById('tbody-docs-prof-ro');
     tb.innerHTML = docs.length
       ? docs.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.fecha?fmtFecha(d.fecha):'—'}</td><td>${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">Abrir ↗</a>`:'—'}</td></tr>`).join('')
@@ -1669,9 +1911,14 @@
       const vinc = db.vinculos.find(v=>v.paciente===pac&&v.profesional===profNombre&&v.estado!=='cerrado')
                 || db.vinculos.find(v=>v.paciente===pac&&v.profesional===profNombre);
       const prestador = vinc ? vinc.prestador : 'SIN VÍNCULO REGISTRADO';
+      // Una sesión marcada "doble" (dos horas seguidas registradas como una sola fila)
+      // cuenta como 2 a efectos de la liquidación.
       const valor = prestador==='BPS'
-        ? String(sesiones.length)
-        : sesiones.map(s=>parseInt(s.fecha.split('-')[2],10)).join(', ');
+        ? String(sesiones.length + sesiones.filter(s=>s.doble).length)
+        : sesiones.map(s=>{
+            const dia = parseInt(s.fecha.split('-')[2],10);
+            return s.doble ? `${dia} (x2)` : String(dia);
+          }).join(', ');
       (grupos[prestador] = grupos[prestador]||[]).push({ paciente: pac, valor });
     });
     return grupos;
@@ -1765,8 +2012,10 @@
     fechaInput.min=vinc.fechaInicio||'';
     fechaInput.max=hoyISO();
     document.getElementById('ses-ticket').checked=false;
+    document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-obs').value='';
     clearFErr('ses-fecha');
+    onSesFechaChange();
     document.getElementById('ses-pac-card').classList.remove('hidden');
     document.getElementById('ses-ok').classList.remove('show');
   }
@@ -1775,9 +2024,10 @@
     document.getElementById('ses-paciente').value='';
     document.getElementById('ses-obs').value='';
     document.getElementById('ses-ticket').checked=false;
+    document.getElementById('ses-doble').checked=false;
     document.getElementById('ses-pac-card').classList.add('hidden');
     document.getElementById('ses-ok').classList.remove('show');
-    clearFErr('ses-paciente'); clearFErr('ses-obs'); clearFErr('ses-fecha');
+    clearFErr('ses-paciente'); clearFErr('ses-obs'); clearFErr('ses-fecha'); clearFWarn('ses-fecha');
   }
 
   async function guardarSesion() {
@@ -1794,7 +2044,8 @@
     else clearFErr('ses-fecha');
     if(!ok) return;
     const ticket=document.getElementById('ses-ticket').checked;
-    const ses={paciente:pac,profesional:profesionalActivo.nombre,fecha:fecha,obs,ticket};
+    const doble=document.getElementById('ses-doble').checked;
+    const ses={paciente:pac,profesional:profesionalActivo.nombre,fecha:fecha,obs,ticket,doble};
     db.sesiones.push(ses);
     const btn=document.querySelector('#screen-sesion .btn-pri.purple');
     if(btn){btn.disabled=true;btn.textContent='Guardando…';}
@@ -1845,6 +2096,7 @@
     document.getElementById('det-fecha-hora').textContent=fmtFecha(s.fecha);
     document.getElementById('det-prof-badge').textContent=profesionalActivo.nombre;
     document.getElementById('det-ticket').textContent=s.ticket?'Sí':'No';
+    document.getElementById('det-doble').textContent=s.doble?'Sí':'No';
     document.getElementById('det-obs').textContent=s.obs;
     const editable = diasDesde(s.fecha) <= 30;
     document.getElementById('btn-modificar-sesion').style.display = editable?'':'none';
@@ -1863,8 +2115,10 @@
     fechaInput.min = vinc&&vinc.fechaInicio ? vinc.fechaInicio : '';
     fechaInput.max = hoyISO();
     document.getElementById('edet-ticket').checked = !!s.ticket;
+    document.getElementById('edet-doble').checked = !!s.doble;
     document.getElementById('edet-obs').value = s.obs;
     clearFErr('edet-fecha'); clearFErr('edet-obs');
+    onEdetFechaChange();
     document.getElementById('edet-ok').classList.remove('show');
     document.getElementById('det-view').classList.add('hidden');
     document.getElementById('det-edit').classList.remove('hidden');
@@ -1888,14 +2142,15 @@
     if (!ok) return;
 
     const ticket = document.getElementById('edet-ticket').checked;
+    const doble = document.getElementById('edet-doble').checked;
     const s = db.sesiones[histSesionIdx];
-    s.fecha = fecha; s.obs = obs; s.ticket = ticket;
+    s.fecha = fecha; s.obs = obs; s.ticket = ticket; s.doble = doble;
 
     const btn = document.getElementById('btn-guardar-edicion-sesion');
     btn.disabled = true; btn.textContent = 'Guardando…';
     setSyncLoading('Guardando…');
     try {
-      await sheetUpdateRow('Sesiones', histSesionIdx+2, [s.paciente, s.profesional, s.fecha, '', s.obs, s.ticket?'Si':'No']);
+      await sheetUpdateRow('Sesiones', histSesionIdx+2, [s.paciente, s.profesional, s.fecha, '', s.obs, s.ticket?'Si':'No', s.doble?'Si':'No']);
       setSyncOk();
     } catch(e) { setSyncErr('Error al guardar'); }
     btn.disabled = false; btn.textContent = 'Guardar cambios';
@@ -2086,7 +2341,7 @@
     // profesional destino: todos menos el actual
     const sel=document.getElementById('reasig-prof');
     sel.innerHTML='<option value="">— Seleccionar —</option>';
-    db.profesionales.filter(p=>p.nombre!==v.profesional).forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
+    activos(db.profesionales).filter(p=>p.nombre!==v.profesional).forEach(p=>{ const o=document.createElement('option'); o.value=p.nombre; o.textContent=p.nombre+(p.esp?' ('+p.esp+')':''); sel.appendChild(o); });
     clearFErr('reasig-prof'); clearFErr('reasig-dia');
     // horarios sugeridos (heredados, editables)
     const cont=document.getElementById('reasig-horarios');
@@ -2125,9 +2380,11 @@
     try {
       const hoy=new Date().toISOString().slice(0,10);
       const ser=serializeHorarios(horarios);
-      // 1) cerrar el viejo
+      // 1) cerrar el viejo — update puntual a su fila, no toca el resto de la tabla
+      const filaVieja = filaDe(db.vinculos, v);
       db.vinculos[reasigIdx]={...v, estado:'cerrado', fechaCierre:hoy};
-      // 2) abrir el nuevo, heredando todo menos profesional/horarios
+      if (filaVieja) await sheetUpdateRow('Vinculos', filaVieja, filaVinculo(db.vinculos[reasigIdx]));
+      // 2) abrir el nuevo, heredando todo menos profesional/horarios — es un registro nuevo, append
       const nuevo={
         paciente:v.paciente, profesional:nuevoProf, prestador:v.prestador, tipo:v.tipo,
         fechaInicio:hoy, dia:ser.dia, hora:ser.hora, horarios,
@@ -2135,7 +2392,7 @@
         estado:'activo', fechaCierre:''
       };
       db.vinculos.push(nuevo);
-      await guardarVinculos();
+      await sheetAppend('Vinculos', filaVinculo(nuevo));
       setSyncOk(); populateAllSelects();
       document.getElementById('reasig-ok').classList.add('show');
       setTimeout(()=>cancelarReasignacion(), 1200);
@@ -2203,10 +2460,10 @@
 
   // ─── CONSULTAS ────────────────────────────────────────────────
   function updateCounts() {
-    document.getElementById('cnt-p').textContent=db.prestadores.length;
-    document.getElementById('cnt-pr').textContent=db.profesionales.length;
-    document.getElementById('cnt-pac').textContent=db.vinculos.length;
-    document.getElementById('cnt-ctr').textContent=db.contratos.length;
+    document.getElementById('cnt-p').textContent=activos(db.prestadores).length;
+    document.getElementById('cnt-pr').textContent=activos(db.profesionales).length;
+    document.getElementById('cnt-pac').textContent=db.vinculos.filter(v=>v.estado!=='cerrado').length;
+    document.getElementById('cnt-ctr').textContent=activos(db.contratos).length;
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2222,7 +2479,7 @@
     ['detail-prestador','detail-profesional','detail-paciente'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('hidden');});
 
     if (type==='prestadores') {
-      const rows=db.prestadores.filter(r=>!q||r.nombre.toLowerCase().includes(q)||(r.dir||'').toLowerCase().includes(q));
+      const rows=activos(db.prestadores).filter(r=>!q||r.nombre.toLowerCase().includes(q)||(r.dir||'').toLowerCase().includes(q));
       document.getElementById('tbody-p').innerHTML=rows.length
         ? rows.map(r=>{
             const isFijo=r.nombre==='PARTICULAR'||r.nombre==='BPS';
@@ -2234,7 +2491,7 @@
           }).join('')
         : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
     } else if (type==='profesionales') {
-      const rows=db.profesionales.filter(r=>!q||r.nombre.toLowerCase().includes(q)||r.esp.toLowerCase().includes(q));
+      const rows=activos(db.profesionales).filter(r=>!q||r.nombre.toLowerCase().includes(q)||r.esp.toLowerCase().includes(q));
       document.getElementById('tbody-pr').innerHTML=rows.length
         ? rows.map(r=>{const idx=db.profesionales.indexOf(r);return`<tr class="clickable" onclick="abrirDetalleProfesional(${idx})"><td>${esc(r.nombre)}</td><td>${esc(r.esp)}</td><td>${esc(r.tel)}</td><td>${esc(r.mail)}</td></tr>`;}).join('')
         : `<tr><td colspan="4" class="empty-state">Sin resultados</td></tr>`;
@@ -2251,7 +2508,7 @@
           }).join('')
         : `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
     } else if (type==='contratos') {
-      const rows=db.contratos.filter(c=>!q||c.prestador.toLowerCase().includes(q)||c.especialidad.toLowerCase().includes(q));
+      const rows=activos(db.contratos).filter(c=>!q||c.prestador.toLowerCase().includes(q)||c.especialidad.toLowerCase().includes(q));
       document.getElementById('tbody-qctr').innerHTML=rows.length
         ? rows.map(c=>`<tr><td>${esc(c.prestador)}</td><td>${esc(c.especialidad)}</td><td>$${esc(String(c.monto))}</td></tr>`).join('')
         : `<tr><td colspan="3" class="empty-state">Sin resultados</td></tr>`;
@@ -2316,7 +2573,7 @@
 
   // ─── DOCUMENTOS DEL PROFESIONAL (admin) ───────────────────────
   function renderDocsProf(profNombre) {
-    const docs=db.documentos.filter(d=>d.profesional===profNombre);
+    const docs=db.documentos.filter(d=>d.profesional===profNombre && d.estado!=='inactivo');
     const tb=document.getElementById('tbody-docs-prof');
     if (!tb) return;
     tb.innerHTML = docs.length
@@ -2342,7 +2599,7 @@
       const folderId=await driveCarpetaProfesional(profNombre);
       const subido=await driveSubirArchivo(file, folderId);
       const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
-      const doc={profesional:profNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      const doc={profesional:profNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10), estado:'activo'};
       db.documentos.push(doc);
       await guardarDocumentoSheet(doc);
       setSyncOk();
@@ -2407,7 +2664,7 @@
 
   // ─── DOCUMENTOS DEL PACIENTE ──────────────────────────────────
   function renderDocsPac(pacNombre) {
-    const docs=db.docsPacientes.filter(d=>d.paciente===pacNombre);
+    const docs=db.docsPacientes.filter(d=>d.paciente===pacNombre && d.estado!=='inactivo');
     const tb=document.getElementById('tbody-docs-pac');
     if (!tb) return;
     tb.innerHTML = docs.length
@@ -2433,7 +2690,7 @@
       const folderId=await driveCarpetaPaciente(pacNombre);
       const subido=await driveSubirArchivo(file, folderId);
       const link=subido.webViewLink || ('https://drive.google.com/file/d/'+subido.id+'/view');
-      const doc={paciente:pacNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10)};
+      const doc={paciente:pacNombre, nombre, link, fileId:subido.id, fecha:new Date().toISOString().slice(0,10), estado:'activo'};
       db.docsPacientes.push(doc);
       await guardarDocPacienteSheet(doc);
       setSyncOk();
@@ -2471,30 +2728,39 @@
 
   async function ejecutarBaja(type, idx) {
     if (type==='prestadores') {
-      db.prestadores.splice(idx,1);
+      const p = db.prestadores[idx];
+      if (!p) return;
+      const fila = filaDePrestador(p);
+      p.estado = 'inactivo';
       setSyncLoading('Guardando…');
-      try { await guardarPrestadores(); setSyncOk(); } catch(e){setSyncErr();}
-      renderQ('prestadores',''); updateCounts();
+      try { if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(p)); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('prestadores',''); updateCounts(); populateAllSelects();
     } else if (type==='profesionales') {
-      db.profesionales.splice(idx,1);
-      renderProfList();
+      const p = db.profesionales[idx];
+      if (!p) return;
+      const fila = filaDe(db.profesionales, p);
+      p.estado = 'inactivo';
       setSyncLoading('Guardando…');
-      try { await guardarProfesionales(); setSyncOk(); } catch(e){setSyncErr();}
-      renderQ('profesionales',''); updateCounts();
+      try { if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(p)); setSyncOk(); } catch(e){setSyncErr();}
+      renderQ('profesionales',''); updateCounts(); populateAllSelects();
     } else if (type==='vinculos') {
-      db.vinculos.splice(idx,1);
+      const v = db.vinculos[idx];
+      if (!v) return;
+      const fila = filaDe(db.vinculos, v);
+      v.estado = 'cerrado'; v.fechaCierre = new Date().toISOString().slice(0,10);
       setSyncLoading('Guardando…');
-      try { await guardarVinculos(); setSyncOk(); } catch(e){setSyncErr();}
+      try { if (fila) await sheetUpdateRow('Vinculos', fila, filaVinculo(v)); setSyncOk(); } catch(e){setSyncErr();}
       renderQ('pacientes',''); updateCounts();
     } else if (type==='docprof') {
       const doc = db.documentos[idx];
       if (!doc) return;
       const profNombre = doc.profesional;
+      const fila = filaDe(db.documentos, doc);
       setSyncLoading('Eliminando…');
       try {
         if (doc.fileId) { try { await driveTrashArchivo(doc.fileId); } catch(e) { console.error('No se pudo mover el archivo a la papelera de Drive:', e); } }
-        db.documentos.splice(idx,1);
-        await guardarDocumentosSheet();
+        doc.estado = 'inactivo';
+        if (fila) await sheetUpdateRow('Documentos', fila, filaDocumento(doc));
         setSyncOk();
       } catch(e) { setSyncErr(); }
       renderDocsProf(profNombre);
@@ -2502,11 +2768,12 @@
       const doc = db.docsPacientes[idx];
       if (!doc) return;
       const pacNombre = doc.paciente;
+      const fila = filaDe(db.docsPacientes, doc);
       setSyncLoading('Eliminando…');
       try {
         if (doc.fileId) { try { await driveTrashArchivo(doc.fileId); } catch(e) { console.error('No se pudo mover el archivo a la papelera de Drive:', e); } }
-        db.docsPacientes.splice(idx,1);
-        await guardarDocPacientesSheet();
+        doc.estado = 'inactivo';
+        if (fila) await sheetUpdateRow('DocumentosPacientes', fila, filaDocPaciente(doc));
         setSyncOk();
       } catch(e) { setSyncErr(); }
       renderDocsPac(pacNombre);
@@ -2614,24 +2881,23 @@
         const nombre=document.getElementById('ep-nombre').value.trim();
         if(!nombre){showFErr('ep-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.prestadores[idx]={...db.prestadores[idx],nombre,dir:document.getElementById('ep-dir').value.trim(),contacto:document.getElementById('ep-contacto').value.trim(),tel:document.getElementById('ep-tel').value.trim(),mail:document.getElementById('ep-mail').value.trim(),tickets:document.getElementById('ep-tickets').checked};
-        await guardarPrestadores();
+        { const fila = filaDePrestador(db.prestadores[idx]); if (fila) await sheetUpdateRow('Prestadores', fila, filaPrestador(db.prestadores[idx])); }
       } else if (type==='profesionales') {
         const nombre=document.getElementById('epr-nombre').value.trim();
         if(!nombre){showFErr('epr-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.profesionales[idx]={...db.profesionales[idx],nombre,esp:document.getElementById('epr-esp').value.trim(),tel:document.getElementById('epr-tel').value.trim(),mail:document.getElementById('epr-mail').value.trim()};
-        renderProfList();
-        await guardarProfesionales();
+        await sheetUpdateRow('Profesionales', idx+2, filaProfesional(db.profesionales[idx]));
       } else if (type==='pacientes') {
         const nombre=document.getElementById('epac-nombre').value.trim();
         if(!nombre){showFErr('epac-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.pacientes[idx]={nombre,ci:document.getElementById('epac-id-tipo').value+' '+document.getElementById('epac-ci').value.trim(),fechaNac:document.getElementById('epac-fecha-nac').value.trim(),tutor:document.getElementById('epac-tutor').value.trim(),tutorTel:document.getElementById('epac-tutor-tel').value.trim(),tutorMail:document.getElementById('epac-tutor-mail').value.trim()};
-        await guardarPacientes();
+        await sheetUpdateRow('Pacientes', idx+2, filaPaciente(db.pacientes[idx]));
       } else if (type==='vinculos') {
         const v = readVinculoFields('vedit');
         if (!v) { btn.disabled=false; btn.textContent='Guardar cambios'; return; }
         const prev = db.vinculos[editVinculoIdx];
         db.vinculos[editVinculoIdx] = { paciente: prev.paciente, ...v, estado: prev.estado||'activo', fechaCierre: prev.fechaCierre||'' };
-        await guardarVinculos();
+        await sheetUpdateRow('Vinculos', editVinculoIdx+2, filaVinculo(db.vinculos[editVinculoIdx]));
       }
       setSyncOk(); populateAllSelects();
       document.getElementById('edit-ok').classList.add('show');
@@ -2667,6 +2933,34 @@
   function getVal(id) { const el=document.getElementById(id); return el?el.value.trim():''; }
   function showFErr(id,msg) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.add('err'); if(err){if(msg)err.textContent=msg;err.classList.add('show');} }
   function clearFErr(id) { const el=document.getElementById(id),err=document.getElementById('err-'+id); if(el)el.classList.remove('err'); if(err)err.classList.remove('show'); }
+  function showFWarn(id,msg) { const w=document.getElementById('warn-'+id); if(w){if(msg)w.textContent=msg;w.classList.add('show');} }
+  function clearFWarn(id) { const w=document.getElementById('warn-'+id); if(w)w.classList.remove('show'); }
+  // Aviso (no bloqueante) si el día de la semana de la fecha elegida no coincide con el
+  // día habitual del vínculo. El profesional puede guardar igual — puede ser una sesión
+  // excepcional — esto es solo para ayudar a pescar errores de tipeo en la fecha.
+  // (DIAS_SEMANA se define más arriba, junto a Asistencia — reutilizada acá también.)
+  function checkFechaVsHorario(fechaISO, vinc) {
+    if (!fechaISO || !vinc) return null;
+    const horarios = vinc.horarios&&vinc.horarios.length ? vinc.horarios : parseHorarios(vinc.dia, vinc.hora);
+    const dias = [...new Set(horarios.map(h=>h.dia).filter(Boolean))];
+    if (!dias.length) return null;
+    const diaFecha = DIAS_SEMANA[new Date(fechaISO+'T12:00:00').getDay()];
+    if (dias.includes(diaFecha)) return null;
+    return `La fecha elegida cae un ${diaFecha}, pero el vínculo tiene asignado ${dias.join(' y ')}. Revisá que la fecha sea correcta.`;
+  }
+  function onSesFechaChange() {
+    clearFErr('ses-fecha');
+    const pac=document.getElementById('ses-paciente').value;
+    const vinc=db.vinculos.find(v=>v.paciente===pac&&v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    const msg=checkFechaVsHorario(document.getElementById('ses-fecha').value, vinc);
+    if (msg) showFWarn('ses-fecha', msg); else clearFWarn('ses-fecha');
+  }
+  function onEdetFechaChange() {
+    clearFErr('edet-fecha');
+    const vinc=db.vinculos.find(v=>v.paciente===histSesionPaciente&&v.profesional===profesionalActivo.nombre&&v.estado!=='cerrado');
+    const msg=checkFechaVsHorario(document.getElementById('edet-fecha').value, vinc);
+    if (msg) showFWarn('edet-fecha', msg); else clearFWarn('edet-fecha');
+  }
   function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
   function parseIdent(v) {
     v = (v||'').trim();
@@ -2683,6 +2977,25 @@
   // ─── INIT ─────────────────────────────────────────────────────
   window.gapiLoaded=gapiLoaded;
   window.gisLoaded=gisLoaded;
+  // Por si el script de Google ya había terminado de cargar (caché tibia) antes de llegar
+  // hasta acá — ver las banderas seteadas en el <head>.
+  if (window.__gapiLoadedEarly) gapiLoaded();
+  if (window.__gisLoadedEarly) gisLoaded();
+</script>
+<script>
+  // Registro del service worker (habilita instalar Volta como app).
+  // Si se abre como archivo local (file://) o el navegador no soporta esto,
+  // simplemente no se registra — el resto de la app funciona igual.
+  // Versión de NAVEGADOR (volta_v6.html): false, para no tocar el service worker ni el caché
+  // de la app instalada. En la versión APP (volta_app_v1.html) va en true.
+  const REGISTRAR_SERVICE_WORKER = false;
+  if (REGISTRAR_SERVICE_WORKER && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => {
+        console.warn('No se pudo registrar el service worker (no afecta el uso normal):', e);
+      });
+    });
+  }
 </script>
 </body>
 </html>
