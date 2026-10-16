@@ -24,7 +24,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer onload="if(window.gisLoaded){gisLoaded();}else{window.__gisLoadedEarly=true;}"></script>
   <script src="https://apis.google.com/js/api.js" async defer onload="if(window.gapiLoaded){gapiLoaded();}else{window.__gapiLoadedEarly=true;}"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -241,6 +241,53 @@
 
     /* ESTADO GUARDANDO EN BOTONES */
     .btn-pri:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* BOTÓN SALIR */
+    .btn-salir { padding: 3px 10px; border: 0.5px solid var(--border-strong); border-radius: 99px; background: transparent; color: var(--text-secondary); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; margin-left: 8px; }
+    .btn-salir:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+    /* ═══ TEMA CENTRO VOLTA (v6) ═══════════════════════════════════
+       Solo estilo: misma paleta y tipografía que el sitio público del centro.
+       Para volver al aspecto anterior alcanza con borrar este bloque. */
+    :root {
+      --volta-yellow: #F9DF56; --volta-amber: #E8B500; --volta-charcoal: #494738;
+      --volta-cream: #FBF7E6; --volta-yellow-soft: #FDF3C4;
+      --bg: #ffffff; --bg-secondary: #F7F4EA; --text-primary: #2E2D24;
+      --text-secondary: #6E6B5C; --text-tertiary: #A9A592;
+      --border: rgba(73,71,56,0.14); --border-strong: rgba(73,71,56,0.26);
+      --radius-md: 10px; --radius-lg: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --volta-cream: #1E1D18; --volta-yellow-soft: #3A3420;
+        --bg: #22211B; --bg-secondary: #2B2A23; --text-primary: #F2EFE3;
+        --text-secondary: #ABA792; --text-tertiary: #6D6A5B;
+        --border: rgba(249,223,86,0.12); --border-strong: rgba(249,223,86,0.22);
+      }
+    }
+    body { background: var(--volta-cream); }
+    .app { border: none; box-shadow: 0 1px 2px rgba(73,71,56,0.06), 0 8px 28px rgba(73,71,56,0.08); }
+    .brand { position: relative; padding-bottom: 14px; margin-bottom: 1.5rem; }
+    .brand::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 4px; border-radius: 4px; background: var(--volta-yellow); }
+    .brand-name, .auth-logo { font-family: 'Fraunces', serif; font-weight: 600; letter-spacing: -0.5px; }
+    .auth-logo { font-size: 34px; }
+    .auth-box { border: none; box-shadow: 0 8px 28px rgba(73,71,56,0.12); border-top: 5px solid var(--volta-yellow); }
+    .home-card { border-color: var(--border); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+    .home-card:hover { background: var(--bg); border-color: var(--volta-amber); box-shadow: 0 6px 18px rgba(73,71,56,0.10); transform: translateY(-2px); }
+    .home-card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; }
+    .prof-avatar { background: var(--volta-yellow); color: var(--volta-charcoal); font-weight: 600; }
+    .main-tab { border-radius: 99px; }
+    .main-tab.active { background: var(--volta-charcoal); border-color: var(--volta-charcoal); color: #fff; }
+    .sub-tab.active { border-bottom-color: var(--volta-amber); }
+    .btn-pri { background: var(--volta-charcoal); color: #fff; border-radius: 99px; }
+    .btn-sec, .btn-back, .btn-danger { border-radius: 99px; }
+    .panel-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--volta-amber); box-shadow: 0 0 0 3px rgba(232,181,0,0.18); }
+    thead tr { background: var(--volta-yellow-soft); }
+    @media (prefers-color-scheme: dark) {
+      .main-tab.active, .btn-pri { background: var(--volta-yellow); border-color: var(--volta-yellow); color: #2E2D24; }
+      .prof-avatar { background: var(--volta-amber); }
+    }
   </style>
 </head>
 <body>
@@ -265,45 +312,21 @@
     <span class="brand-version" id="brand-version"></span>
   </div>
   <div class="sync-bar">
+    <span id="user-email"></span>
+    <button id="btn-salir" class="btn-salir hidden" onclick="salir()">Salir</button>
+    <span style="margin-right:auto;"></span>
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-txt">Conectando…</span>
   </div>
 
-  <!-- HOME -->
+  <!-- INICIO: ya no hay menú. Se muestra mientras se identifica la cuenta y, si la cuenta
+       no está habilitada, queda mostrando el aviso. El destino lo decide entrarSegunCuenta(). -->
   <div id="screen-home" class="screen active">
-    <div style="font-size:15px;color:var(--text-secondary);margin-bottom:1.5rem;">¿Cómo ingresás hoy?</div>
-    <div class="home-grid">
-      <div class="home-card" onclick="goAdmin()">
-        <div class="home-card-icon icon-admin">⚙</div>
-        <div class="home-card-title">Administrador</div>
-        <div class="home-card-sub">Gestión de prestadores, profesionales y pacientes</div>
-      </div>
-      <div class="home-card" onclick="goScreen('screen-proflist')">
-        <div class="home-card-icon icon-prof">◆</div>
-        <div class="home-card-title">Profesional</div>
-        <div class="home-card-sub">Registrar sesiones y consultar historia clínica</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CLAVE ADMINISTRADOR -->
-  <div id="screen-admin-pass" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
-    <div class="panel-title" style="margin-bottom:4px;">Administrador</div>
-    <div class="panel-sub">Ingresá la clave para continuar.</div>
-    <div class="fg full" style="max-width:320px;margin-top:1rem;">
-      <label>Clave</label>
-      <input id="admin-pass-input" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkAdminPassword()" oninput="document.getElementById('admin-pass-err').classList.remove('show')">
-      <span class="field-err" id="admin-pass-err">Clave incorrecta.</span>
-    </div>
-    <div class="submit-row" style="max-width:320px;">
-      <button class="btn-pri alta" onclick="checkAdminPassword()">Ingresar</button>
-    </div>
+    <div id="home-msg" style="font-size:15px;color:var(--text-secondary);">Identificando la cuenta…</div>
   </div>
 
   <!-- ADMIN -->
   <div id="screen-admin" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
     <div class="main-nav">
       <button id="tab-abm" class="main-tab active" onclick="switchMain('abm',this)">Altas, bajas y modificaciones</button>
       <button id="tab-consultas" class="main-tab" onclick="switchMain('consultas',this)">Consultas</button>
@@ -621,16 +644,8 @@
     </div>
     <div id="reasig-ok" class="ok-msg"><span>✓</span><span>Paciente reasignado correctamente.</span></div>
   </div>
-  <div id="screen-proflist" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-home')">← Inicio</button>
-    <div class="panel-title" style="margin-bottom:4px;">Profesionales</div>
-    <div class="panel-sub">Seleccioná tu nombre para continuar</div>
-    <div class="prof-list" id="prof-list"></div>
-  </div>
-
   <!-- MENÚ PROFESIONAL -->
   <div id="screen-profmenu" class="screen">
-    <button class="btn-back" onclick="goScreen('screen-proflist')">← Profesionales</button>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:2rem;">
       <div class="prof-avatar" id="pm-avatar" style="width:44px;height:44px;font-size:14px;"></div>
       <div>
@@ -857,10 +872,19 @@
   // que el service worker traiga la versión nueva sin depender solo del "red primero", también
   // conviene bumpear CACHE_NAME en sw.js a la par). Si alguien reporta un problema, lo primero
   // es preguntar qué versión ve acá, en vez de asumir cuál está corriendo.
-  const APP_VERSION = 'v5';
+  const APP_VERSION = 'v6';
   { const el = document.getElementById('brand-version'); if (el) el.textContent = APP_VERSION; }
+  // PRODUCCIÓN. (Desarrollo: '13v3F1xu_pH1gzwxkE5F3DQkJIEnu-1ka9Rohc_lSmis')
   const SHEET_ID  = '1hP4tz4c9PvMshwQax0utUpSVMC-E9WjhYoxPXTbYY5k';
-  const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+  // 'openid email' se agregan para saber con qué cuenta entró la persona (ver obtenerEmailCuenta).
+  const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file openid email';
+  // Cuenta de administración: entra directo a Administración (reemplaza a la clave de v5).
+  // No es un secreto: el email lo verifica Google al iniciar sesión, no la app. Lo que protege
+  // los datos son los permisos de la planilla y de Drive.
+  const ADMIN_EMAIL = 'voltacentro@gmail.com';
+  // Clave propia de esta versión para el token guardado: un token de v5 no trae el permiso
+  // 'email', así que no sirve para identificar la cuenta.
+  const TOKEN_KEY = 'volta_token_v6';
   const DISCOVERY = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
   const DISCOVERY_DRIVE = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
   const ROOT_FOLDER_NAME = 'VoltaProfesionales';
@@ -876,6 +900,9 @@
 
   let tokenClient = null, gapiReady = false, gisReady = false, accessToken = null;
   let profesionalActivo = null;
+  // Rol de la sesión, decidido por el email de la cuenta: 'admin' | 'profesional' | null.
+  let modoSesion = null;
+  let emailCuenta = '';
 
   // ─── DETECCIÓN DE NAVEGADOR EMBEBIDO (WhatsApp, Instagram, Facebook, etc.) ─────
   // Google bloquea el login OAuth dentro de estos "WebView" por seguridad (política vigente
@@ -910,7 +937,8 @@
         accessToken = resp.access_token;
         document.getElementById('auth-overlay').classList.add('hidden');
         setSyncLoading('Cargando datos…');
-        try { await cargarTodo(); setSyncOk(); } catch(e) { mostrarErrorCarga(e); }
+        try { await cargarTodo(); setSyncOk(); } catch(e) { mostrarErrorCarga(e); return; }
+        await entrarSegunCuenta();
       }
     });
     gisReady = true; maybeReady();
@@ -928,15 +956,15 @@
     if (errEl.classList.contains('show') && errEl.dataset.kind === 'timeout') {
       errEl.classList.remove('show'); errEl.innerHTML = ''; delete errEl.dataset.kind;
     }
-    const saved = sessionStorage.getItem('volta_token');
+    const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) {
       gapi.client.setToken({ access_token: saved });
       accessToken = saved;
       document.getElementById('auth-overlay').classList.add('hidden');
       setSyncLoading('Cargando datos…');
-      cargarTodo().then(setSyncOk).catch((e) => {
-        mostrarErrorCarga(e);
-      });
+      cargarTodo()
+        .then(() => { setSyncOk(); return entrarSegunCuenta(); })
+        .catch((e) => { mostrarErrorCarga(e); });
     }
   }
   // Si a los 25s Google todavía no cargó (red muy lenta o bloqueada), avisar en vez de
@@ -952,8 +980,89 @@
     el.classList.add('show');
     el.dataset.kind = 'timeout';
   }, 25000);
-  function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
+  // 'select_account' hace que Google muestre siempre el selector de cuentas, en vez de entrar
+  // solo con la última usada. Así quien tiene dos cuentas (Graciela: la suya y la de
+  // administración) elige cada vez. Para cambiar de cuenta alcanza con cerrar y volver a abrir.
+  function iniciarLogin() { if (!tokenClient) { showAuthErr(); return; } tokenClient.requestAccessToken({ prompt: 'select_account consent' }); }
   function showAuthErr() { document.getElementById('auth-err').classList.add('show'); }
+
+  // ─── IDENTIFICACIÓN DE LA CUENTA ──────────────────────────────
+  // Normaliza un email para compararlo: minúsculas y sin espacios. En Gmail además los
+  // puntos de la parte local no cuentan (juan.perez@gmail.com == juanperez@gmail.com), ni lo
+  // que va después de un '+'; así un mail cargado con o sin puntos en la base igual coincide.
+  function normalizarEmail(e) {
+    e = String(e || '').trim().toLowerCase();
+    const at = e.lastIndexOf('@');
+    if (at < 1) return e;
+    let local = e.slice(0, at), dominio = e.slice(at + 1);
+    if (dominio === 'gmail.com' || dominio === 'googlemail.com') {
+      local = local.split('+')[0].replace(/\./g, '');
+      dominio = 'gmail.com';
+    }
+    return local + '@' + dominio;
+  }
+  // Pide a Google el email de la cuenta con la que se inició sesión (necesita 'openid email').
+  async function obtenerEmailCuenta() {
+    const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!resp.ok) throw new Error('userinfo ' + resp.status);
+    const info = await resp.json();
+    if (!info.email || info.email_verified === false) throw new Error('email no verificado');
+    return info.email;
+  }
+  // Decide a dónde entra la cuenta. Devuelve { modo, prof }:
+  //   'admin'        → la cuenta de administración
+  //   'profesional'  → el email coincide con el de un profesional activo (prof = ese registro)
+  //   'no-habilitado'→ cualquier otro caso
+  function resolverAcceso(email, profesionales) {
+    const e = normalizarEmail(email);
+    if (!e) return { modo: 'no-habilitado', prof: null };
+    if (e === normalizarEmail(ADMIN_EMAIL)) return { modo: 'admin', prof: null };
+    const matches = profesionales.filter(p => p.estado !== 'inactivo' && p.mail && normalizarEmail(p.mail) === e);
+    if (matches.length > 1) console.warn('Más de un profesional activo con el mail ' + email + '; se usa el primero.');
+    if (matches.length) return { modo: 'profesional', prof: matches[0] };
+    return { modo: 'no-habilitado', prof: null };
+  }
+  async function entrarSegunCuenta() {
+    try {
+      emailCuenta = await obtenerEmailCuenta();
+    } catch (e) {
+      console.error('No se pudo identificar la cuenta:', e);
+      volverALogin('No se pudo identificar con qué cuenta ingresaste. Volvé a ingresar con Google.');
+      return;
+    }
+    document.getElementById('user-email').textContent = emailCuenta;
+    document.getElementById('btn-salir').classList.remove('hidden');
+    const acceso = resolverAcceso(emailCuenta, db.profesionales);
+    modoSesion = acceso.modo === 'no-habilitado' ? null : acceso.modo;
+    if (acceso.modo === 'admin') { goAdmin(); return; }
+    if (acceso.modo === 'profesional') { selectProf(db.profesionales.indexOf(acceso.prof)); return; }
+    profesionalActivo = null;
+    document.getElementById('home-msg').innerHTML =
+      '<div class="panel-title" style="margin-bottom:8px;">Cuenta no habilitada</div>' +
+      '<div class="panel-sub" style="margin-bottom:1rem;">La cuenta <strong>' + esc(emailCuenta) + '</strong> no está registrada como profesional de Volta. ' +
+      'Si es tu cuenta, pedile a administración que la cargue en tu ficha. Si te equivocaste de cuenta, ingresá con la correcta.</div>' +
+      '<button class="btn-sec" onclick="volverALogin()">Ingresar con otra cuenta</button>';
+    goScreen('screen-home');
+  }
+  // Botón "Salir": cierra la sesión de Volta (no la de Google en el dispositivo).
+  function salir() { volverALogin(); setSyncErr('Sesión cerrada'); }
+  // Olvida el token y vuelve a la pantalla de ingreso (opcionalmente con un mensaje).
+  function volverALogin(msg) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    try { if (accessToken && window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(accessToken, () => {}); } catch(e) {}
+    accessToken = null; modoSesion = null; profesionalActivo = null; emailCuenta = '';
+    try { gapi.client.setToken(null); } catch(e) {}
+    document.getElementById('user-email').textContent = '';
+    document.getElementById('btn-salir').classList.add('hidden');
+    document.getElementById('home-msg').textContent = 'Identificando la cuenta…';
+    goScreen('screen-home');
+    const el = document.getElementById('auth-data-err');
+    if (msg) { el.textContent = msg; el.classList.add('show'); } else { el.textContent = ''; el.classList.remove('show'); }
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    setSyncErr('Sin sesión');
+  }
 
   // Clasifica el error de carga de datos y muestra un mensaje accionable, en vez de dejar
   // la pantalla vacía sin explicación. Nota: para archivos de Google sin permiso, la API
@@ -985,7 +1094,7 @@
     const el = document.getElementById('auth-data-err');
     el.textContent = msg;
     el.classList.add('show');
-    sessionStorage.removeItem('volta_token');
+    sessionStorage.removeItem(TOKEN_KEY);
     accessToken = null;
     document.getElementById('auth-overlay').classList.remove('hidden');
     setSyncErr('Sin datos');
@@ -993,7 +1102,7 @@
 
   // ─── SYNC UI ──────────────────────────────────────────────────
   function setSyncLoading(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot loading'; t.textContent=msg||'Sincronizando…'; }
-  function setSyncOk() { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot ok'; t.textContent='Sincronizado '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); if(accessToken) sessionStorage.setItem('volta_token',accessToken); }
+  function setSyncOk() { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot ok'; t.textContent='Sincronizado '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); if(accessToken) sessionStorage.setItem(TOKEN_KEY,accessToken); }
   function setSyncErr(msg) { const d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt'); d.className='sync-dot err'; t.textContent=msg||'Error al sincronizar'; }
 
   // ─── SHEETS HELPERS ───────────────────────────────────────────
@@ -1009,6 +1118,10 @@
   // ─── DRIVE HELPERS ────────────────────────────────────────────
   // Busca una carpeta por nombre dentro de un padre; la crea si no existe. Devuelve su id.
   async function driveGetOrCreateFolder(nombre, parentId) {
+    // Resguardo: con el permiso drive.file cada cuenta solo ve las carpetas que la app creó
+    // con ESA cuenta. Si otra cuenta llegara acá, crearía carpetas nuevas en su Drive personal
+    // y los archivos quedarían ahí. Por eso solo la cuenta de administración crea o sube.
+    if (modoSesion !== 'admin') throw new Error('Solo la cuenta de administración puede subir documentos.');
     const safe = nombre.replace(/'/g,"\\'");
     let q = `mimeType='application/vnd.google-apps.folder' and name='${safe}' and trashed=false`;
     if (parentId) q += ` and '${parentId}' in parents`;
@@ -1047,6 +1160,7 @@
   }
   // Sube un File del navegador a la carpeta indicada. Devuelve {id, webViewLink, name}.
   async function driveSubirArchivo(file, folderId) {
+    if (modoSesion !== 'admin') throw new Error('Solo la cuenta de administración puede subir documentos.');
     const metadata = { name: file.name, parents: [folderId] };
     const boundary = '-------volta'+Date.now();
     const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${file.type||'application/octet-stream'}\r\n\r\n`;
@@ -1115,7 +1229,6 @@
     db.docsPacientes = docPacRows.filter(r=>r[0]).map(r=>({paciente:r[0],nombre:r[1]||'',link:r[2]||'',fileId:r[3]||'',fecha:r[4]||'',estado:(r[5]||'').trim().toLowerCase()==='inactivo'?'inactivo':'activo'}));
 
     populateAllSelects();
-    renderProfList();
     updateCounts();
     ['prestadores','profesionales','pacientes','contratos'].forEach(k=>renderQ(k,''));
   }
@@ -1689,7 +1802,6 @@
       if (existente) { Object.assign(existente, datos, {estado:'activo'}); registro = existente; esNuevo = false; }
       else { registro = {nombre,estado:'activo',...datos}; db.profesionales.push(registro); esNuevo = true; }
       document.getElementById('profesionales-ok').classList.add('show');
-      renderProfList();
       btn.disabled=true; btn.textContent='Guardando…';
       setSyncLoading('Guardando…');
       try {
@@ -1723,30 +1835,14 @@
 
   // ─── NAVEGACIÓN ───────────────────────────────────────────────
   function goScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-  const ADMIN_PASSWORD = 'Voltalabarra';
-  let adminUnlocked = false;
+  // Ya no hay clave: a Administración solo se llega si la cuenta es la de administración.
   function goAdmin() {
-    if (!adminUnlocked) {
-      document.getElementById('admin-pass-input').value='';
-      document.getElementById('admin-pass-err').classList.remove('show');
-      goScreen('screen-admin-pass');
-      setTimeout(()=>document.getElementById('admin-pass-input').focus(),50);
-      return;
-    }
+    if (modoSesion !== 'admin') return;
     updateCounts(); ['prestadores','profesionales','pacientes','contratos'].forEach(k=>renderQ(k,''));
     goScreen('screen-admin');
     // Asegurar que ABM esté activo y su primer sub-tab también
     const abmTab=document.getElementById('tab-abm');
     if(abmTab&&!abmTab.classList.contains('active')) switchMain('abm',abmTab);
-  }
-  function checkAdminPassword() {
-    const val = document.getElementById('admin-pass-input').value;
-    if (val === ADMIN_PASSWORD) { adminUnlocked = true; goAdmin(); }
-    else {
-      document.getElementById('admin-pass-err').classList.add('show');
-      document.getElementById('admin-pass-input').value='';
-      document.getElementById('admin-pass-input').focus();
-    }
   }
   function switchMain(id, el) {
     document.querySelectorAll('.main-section').forEach(s=>s.classList.remove('active'));
@@ -1766,15 +1862,8 @@
   }
 
   // ─── PROFESIONALES ────────────────────────────────────────────
-  function renderProfList() {
-    const list=document.getElementById('prof-list');
-    const lista = activos(db.profesionales);
-    list.innerHTML=lista.map(p=>{
-      const i = db.profesionales.indexOf(p);
-      const ini=p.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
-      return `<div class="prof-item" onclick="selectProf(${i})"><div class="prof-avatar">${ini}</div><div><div class="prof-item-name">${esc(p.nombre)}</div><div class="prof-item-esp">${esc(p.esp)}</div></div></div>`;
-    }).join('');
-  }
+  // Entra al menú del profesional i. Ya no se elige de una lista: lo llama entrarSegunCuenta()
+  // con el profesional cuyo mail coincide con la cuenta.
   function selectProf(i) {
     profesionalActivo=db.profesionales[i];
     const ini=profesionalActivo.nombre.split(' ').filter(w=>/[A-ZÁÉÍÓÚ]/.test(w[0])).slice(0,2).map(w=>w[0]).join('');
@@ -2651,7 +2740,6 @@
       if (!p) return;
       const fila = filaDe(db.profesionales, p);
       p.estado = 'inactivo';
-      renderProfList();
       setSyncLoading('Guardando…');
       try { if (fila) await sheetUpdateRow('Profesionales', fila, filaProfesional(p)); setSyncOk(); } catch(e){setSyncErr();}
       renderQ('profesionales',''); updateCounts(); populateAllSelects();
@@ -2798,7 +2886,6 @@
         const nombre=document.getElementById('epr-nombre').value.trim();
         if(!nombre){showFErr('epr-nombre','Campo requerido.');btn.disabled=false;btn.textContent='Guardar cambios';return;}
         db.profesionales[idx]={...db.profesionales[idx],nombre,esp:document.getElementById('epr-esp').value.trim(),tel:document.getElementById('epr-tel').value.trim(),mail:document.getElementById('epr-mail').value.trim()};
-        renderProfList();
         await sheetUpdateRow('Profesionales', idx+2, filaProfesional(db.profesionales[idx]));
       } else if (type==='pacientes') {
         const nombre=document.getElementById('epac-nombre').value.trim();
@@ -2899,7 +2986,9 @@
   // Registro del service worker (habilita instalar Volta como app).
   // Si se abre como archivo local (file://) o el navegador no soporta esto,
   // simplemente no se registra — el resto de la app funciona igual.
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  // Versión APP (volta_app_v1.html): true. En una copia de navegador o de desarrollo va en false.
+  const REGISTRAR_SERVICE_WORKER = true;
+  if (REGISTRAR_SERVICE_WORKER && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch((e) => {
         console.warn('No se pudo registrar el service worker (no afecta el uso normal):', e);
